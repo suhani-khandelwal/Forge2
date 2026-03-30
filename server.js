@@ -11,19 +11,16 @@ app.use(express.json());
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ─── Multi-Key Rotation Pool ─────────────────────────────────────────────────
-// Loads all GEMINI_API_KEY_1, _2, _3 ... from .env automatically
 const apiKeys = Object.entries(process.env)
   .filter(([k]) => k.startsWith("GEMINI_API_KEY"))
   .map(([, v]) => v)
   .filter(Boolean);
 
 if (apiKeys.length === 0) {
-  console.error("❌ No GEMINI_API_KEY found in .env! Please add at least one.");
-  process.exit(1);
+  console.warn("⚠️  WARNING: No GEMINI_API_KEY found in environment variables. AI features will fail until a key is added in Vercel settings.");
+} else {
+  console.log(`  🔑 Loaded ${apiKeys.length} API key(s) for rotation\n`);
 }
-
-console.log(`  🔑 Loaded ${apiKeys.length} API key(s) for rotation\n`);
 
 // Try each key in order; move to next key on 429
 async function generateWithKeyRotation(prompt) {
@@ -487,7 +484,7 @@ Return ONLY valid JSON (no markdown):
 });
 
 const PORT = process.env.PORT || 3001;
-const isMain = import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`;
+const isMain = import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, "/")}`;
 
 if (isMain) {
   app.listen(PORT, () => {
