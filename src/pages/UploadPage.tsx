@@ -84,8 +84,12 @@ const UploadPage = () => {
       setGeneratedResults(results);
 
       navigate("/loading?source=upload");
-    } catch (error) {
-      console.error("Upload analysis error:", error);
+    } catch (error: any) {
+      console.error("Upload Generation Error details:", {
+        message: error.message,
+        stack: error.stack,
+        url: "/api/generate-insights"
+      });
       // Fallback for seamless experience
       const rawTexts = previewData.map((pd) => pd.rawText).filter(Boolean);
       if (rawTexts.length > 0) {

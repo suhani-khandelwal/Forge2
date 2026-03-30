@@ -9,7 +9,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// ─── Health Check (for Vercel debugging) ──────────────────────────────────────
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "alive", 
+    time: new Date().toISOString(),
+    keysLoaded: apiKeys.length,
+    env: process.env.NODE_ENV
+  });
+});
 
 const apiKeys = Object.entries(process.env)
   .filter(([k]) => k.startsWith("GEMINI_API_KEY"))
@@ -177,8 +185,8 @@ Return ONLY a valid JSON object (no markdown, no preamble):
       console.log("  [API] Deep Synthesis starting...");
       rawText = await generateWithKeyRotation(prompt);
       console.log("  [API] ✅ Success");
-    } catch (apiError) {
-      console.warn("  [API] ❌ Failed. Using category-aware fallback.");
+    } catch (error) {
+      console.error("  [API] ❌ Failed. Using category-aware fallback. Error:", error.message);
       rawText = generateLocalIntelligence(conceptName, category, tags, format, ingredients);
     }
 

@@ -85,8 +85,12 @@ const MinePage = () => {
 
       const results = await response.json();
       setGeneratedResults(results);
-    } catch (error) {
-      console.error("Mining error, using local fallback:", error);
+    } catch (error: any) {
+      console.error("Mining error details:", {
+        message: error.message,
+        stack: error.stack,
+        url: "/api/generate-insights"
+      });
       const { generateFromMine } = await import("@/utils/conceptGenerator");
       const results = generateFromMine(selectedCategory, keywords, enabledSources);
       setGeneratedResults(results);
