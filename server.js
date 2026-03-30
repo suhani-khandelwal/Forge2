@@ -9,6 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const apiKeys = Object.entries(process.env)
+  .filter(([k]) => k.startsWith("GEMINI_API_KEY"))
+  .map(([, v]) => v)
+  .filter(Boolean);
+
 // ─── Health Check (for Vercel debugging) ──────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({ 
@@ -18,11 +23,6 @@ app.get("/api/health", (req, res) => {
     env: process.env.NODE_ENV
   });
 });
-
-const apiKeys = Object.entries(process.env)
-  .filter(([k]) => k.startsWith("GEMINI_API_KEY"))
-  .map(([, v]) => v)
-  .filter(Boolean);
 
 if (apiKeys.length === 0) {
   console.warn("⚠️  WARNING: No GEMINI_API_KEY found in environment variables. AI features will fail until a key is added in Vercel settings.");
@@ -41,6 +41,7 @@ async function generateWithKeyRotation(prompt) {
 
   for (let i = 0; i < apiKeys.length; i++) {
     const key = apiKeys[i];
+    const client = new GoogleGenerativeAI(key);
 
     for (const modelName of models) {
       try {
