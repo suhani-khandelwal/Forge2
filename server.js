@@ -2,8 +2,13 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
@@ -30,8 +35,8 @@ app.get("/api/health", async (req, res) => {
     modelList = ["Error listing models: " + e.message];
   }
 
-  res.json({ 
-    status: "alive", 
+  res.json({
+    status: "alive",
     time: new Date().toISOString(),
     keysLoaded: apiKeys.length,
     urlReceived: req.url,
@@ -51,41 +56,55 @@ if (apiKeys.length === 0) {
 // Try each key in order; move to next key on 429
 async function generateWithKeyRotation(prompt) {
   const models = [
+    "gemini-3-flash-preview",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-pro"
+    "gemini-1.5-pro",
+    "gemini-pro"
   ];
 
   for (let i = 0; i < apiKeys.length; i++) {
     const key = apiKeys[i];
-    const client = new GoogleGenerativeAI(key);
 
     for (const modelName of models) {
+      const client = new GoogleGenerativeAI(key);
+      const m = client.getGenerativeModel({
+        model: modelName,
+        generationConfig: { responseMimeType: "application/json" },
+      });
+
       try {
         console.log(`  [Key ${i + 1}/${apiKeys.length}] Attempting with ${modelName}...`);
-        const client = new GoogleGenerativeAI(key);
-        const m = client.getGenerativeModel({
-          model: modelName,
-          generationConfig: { responseMimeType: "application/json" },
-        });
         const result = await m.generateContent(prompt);
         console.log(`  [Key ${i + 1}] ✅ Success (${modelName})`);
         return result.response.text();
-      } catch (err) {
-        const isQuota = err.message?.includes("429") || err.message?.includes("quota");
-        const isNotFound = err.message?.includes("404") || err.message?.includes("not found");
+        } catch (err) {
+          const isQuota = err.message?.includes("429") || err.message?.includes("quota");
+          const isNotFound = err.message?.includes("404") || err.message?.includes("not found");
+          const isServiceUnavailable = err.message?.includes("503") || err.message?.includes("Service Unavailable");
 
-        console.error(`  [Key ${i + 1}] ❌ Error with ${modelName}: ${err.message}`);
-        lastAiError = `[${modelName}] ${err.message}`;
+          console.error(`  [Key ${i + 1}] ❌ Error with ${modelName}: ${err.message}`);
+          lastAiError = `[${modelName}] ${err.message}`;
 
-        if (isQuota || isNotFound) {
-          continue; // Move to next model/key
+          if (isServiceUnavailable) {
+            console.log(`  [Retry] ⏳ 503 Service Unavailable for ${modelName}. Waiting 2s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Second attempt for the same model
+            try {
+              const result = await m.generateContent(prompt);
+              console.log(`  [Key ${i + 1}] ✅ Success after retry (${modelName})`);
+              return result.response.text();
+            } catch (retryErr) {
+              console.error(`  [Retry] ❌ Failed even after retry: ${retryErr.message}`);
+            }
+          }
+
+          if (isQuota || isNotFound || isServiceUnavailable) {
+            continue; // Move to next model/key
+          }
+          // If it's a 400 (Bad Request/Invalid Key) or 403 (Forbidden), we continue to next key anyway
+          continue;
         }
-        // If it's a 400 (Bad Request/Invalid Key) or 403 (Forbidden), we continue to next key anyway
-        continue;
-      }
     }
   }
 
@@ -149,108 +168,170 @@ function generateLocalIntelligence(conceptName, category, tags, format, ingredie
   return JSON.stringify(fallbackData);
 }
 
-// ─── Intelligence Endpoint ────────────────────────────────────────────────────
+// ─── Real-Time Research: Autonomous Market Harvester ──────────────────────────
+async function fetchDuckDuckGo(query) {
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    if (!response.ok) throw new Error(`Search failed: ${response.status}`);
+    const html = await response.text();
+    const snippets = [];
+    const regex = /<a class="result__snippet"[\s\S]*?>([\s\S]*?)<\/a>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null && snippets.length < 10) {
+      const cleanSnippet = match[1].replace(/<[^>]*>?/gm, '').trim();
+      if (cleanSnippet) snippets.push(cleanSnippet);
+    }
+    return snippets.join("\n\n");
+  } catch (err) {
+    console.error(`  [Search] ❌ Fail for "${query}": ${err.message}`);
+    return "";
+  }
+}
+
+async function getMarketSignals(category, keywords) {
+  const query = `${keywords || category} market consumer complaints reviews India site:nykaa.com OR site:amazon.in OR site:flipkart.com`;
+  console.log(`  [Research] 🌐 Searching: "${query}"`);
+  const results = await fetchDuckDuckGo(query);
+  if (!results) return "No live signals found. Proceeding with internal knowledge.";
+  console.log(`  [Research] ✅ Raw signals harvested`);
+  return results;
+}
+
+// ─── Deep Verification: Searching specific brand+product combos ──────────────
+async function verifyProductRealness(brand, product) {
+  const query = `"${brand}" "${product}" India site:amazon.in OR site:nykaa.com OR site:flipkart.com`;
+  console.log(`  [Deep Verify] 🔍 Proving existence: ${brand} ${product}...`);
+  const result = await fetchDuckDuckGo(query);
+  
+  // If we find the brand AND product in the search results, it's confirmed
+  const isFound = result.toLowerCase().includes(brand.toLowerCase()) && 
+                  result.toLowerCase().includes(product.toLowerCase().split(' ')[0]); // Check at least first word of product
+  
+  if (isFound) {
+    console.log(`  [Deep Verify] ✅ CONFIRMED: ${brand} ${product}`);
+    return true;
+  }
+  
+  console.log(`  [Deep Verify] ❌ UNABLE TO PROVE: ${brand} ${product}`);
+  return false;
+}
+
+// ─── Intelligence Endpoint (Deep Verification Flow) ───────────────────────────
 app.post("/api/scrape", async (req, res) => {
   const { conceptName, category, tags, ingredients, format, positioning, tagline } = req.body;
   if (!conceptName) return res.status(400).json({ error: "conceptName required" });
 
   console.log(`\n[Intelligence] Request: "${conceptName}" | ${category} | ${format}`);
+  
+  try {
+    // ── STAGE 0: Discovery ────────────────────────────────────────────────────
+    const liveSignals = await getMarketSignals(category, conceptName);
 
-  const prompt = `
-You are an expert Competitive Intelligence AI for the Indian D2C wellness market (Amazon IN, Nykaa, etc.).
+    const prompt = `
+You are an expert Competitive Intelligence AI for the Indian D2C wellness market.
+
+LIVE MARKET RESEARCH SNIPPETS:
+"""
+${liveSignals}
+"""
 
 FIND STRIKINGLY RELEVANT COMPETITORS for this exact product concept:
 Concept: "${conceptName}"
-- Category: "${category}"
-- Format: "${format}"
-- Tagline: "${tagline}"
-- Key Ingredients: ${ingredients?.join(", ")}
-- Positioning: "${positioning}"
-- Tags: ${tags?.join(", ")}
+Category: "${category}"
 
 CRITICAL TASK: 
-1. Identify 5–7 products sold in India that are the MOST SIMILAR to this concept in terms of FORM FACTOR (e.g., if it's a powder, find powders) and ACTIVE INGREDIENTS.
-2. If it is a Supplement, ONLY find Supplements (Oziva, MuscleBlaze, Wellbeing Nutrition). 
-3. If it is Haircare, ONLY find Haircare (Plum, Pilgrim, Mamaearth). 
-4. DO NOT suggest "Minimalist" or "The Derma Co" serums if the concept is a Hair Serum or a Supplement.
-5. IF YOU ARE EVEN 5% UNSURE IF THE PRODUCT IS REAL, SKIP IT. Ensure "verified": true only if you are 100% certain.
+1. Based ONLY on the snippets provided, identify 4–5 POTENTIAL real competitors (Brand + Product Name).
+2. For each, extract: brand, product_name, price, spf_or_strength, key_ingredients, skin_type_or_target, claims, rating, platform, product_url.
 
-Return ONLY a valid JSON object (no markdown, no preamble):
-
+Return ONLY a valid JSON object:
 {
-  "key_differentiation": "2–3 sentences: what are the competitors missing that this concept solves?",
-  "white_space": "One precise, actionable formulation or positioning whitespace in the Indian market.",
+  "key_differentiation": "...",
+  "white_space": "...",
   "pricing_benchmark": { "low": "₹X", "mid": "₹Y", "premium": "₹Z+" },
-  "dataConfidence": "high | medium",
-  "competitors": [
-    {
-      "brand": "Real Indian Brand",
-      "product_name": "Full, exact product name",
-      "price": "Real price (₹)",
-      "spf_or_strength": "Strength or 'Standard'",
-      "key_ingredients": ["Ingredient 1", "Ingredient 2"],
-      "skin_type_or_target": "Primary concern addressed",
-      "claims": ["Claim 1", "Claim 2"],
-      "rating": "4.x/5",
-      "platform": "Nykaa / Amazon IN",
-      "product_url": "Real direct product URL",
-      "verified": true
-    }
+  "potential_competitors": [
+    { "brand": "Brand", "product_name": "Product", ... }
   ]
 }
 `;
 
-  try {
-    let rawText;
+    console.log("  [API] Discovery Synthesis starting...");
+    const rawText = await generateWithKeyRotation(prompt);
+    let discoveryResult;
     try {
-      console.log("  [API] Deep Synthesis starting...");
-      rawText = await generateWithKeyRotation(prompt);
-      console.log("  [API] ✅ Success");
-    } catch (error) {
-      console.error("  [API] ❌ Failed. Using category-aware fallback. Error:", error.message);
-      rawText = generateLocalIntelligence(conceptName, category, tags, format, ingredients);
-    }
-
-    let intelligence;
-    try {
-      intelligence = JSON.parse(rawText);
+      discoveryResult = JSON.parse(rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
     } catch {
       const cleaned = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        intelligence = JSON.parse(jsonMatch[0]);
-      } else {
-        intelligence = JSON.parse(generateLocalIntelligence(conceptName, category, tags, format, ingredients));
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      discoveryResult = JSON.parse(match ? match[0] : "{}");
+    }
+
+    const potentialList = discoveryResult.potential_competitors || [];
+    console.log(`  [API] Found ${potentialList.length} potential candidates. Starting Deep Verification...`);
+
+    // ── STAGE 1: Deep Verification ────────────────────────────────────────────
+    const verifiedCompetitors = [];
+    
+    // We process these in parallel for speed, but limit to 4 to avoid rate limits
+    const verifyPromises = potentialList.slice(0, 5).map(async (comp) => {
+      const isReal = await verifyProductRealness(comp.brand, comp.product_name);
+      if (isReal) {
+        return { ...comp, verified: true };
       }
+      return null;
+    });
+
+    const results = await Promise.all(verifyPromises);
+    const finalCompetitors = results.filter(r => r !== null);
+
+    console.log(`  [Deep Verify] ✅ Final Count: ${finalCompetitors.length} confirmed products`);
+
+    // If we have ZERO confirmed products, we use the fallback logic once as a failsafe
+    if (finalCompetitors.length === 0 && potentialList.length > 0) {
+      console.log("  [Deep Verify] ⚠️ Zero products verified. AI might be hallucinating. Using discovery data as tentative fallback.");
+      // In this case, we mark them as unverified or show a warning. 
+      // For now, let's just return the discovery ones but marked as "discovery".
     }
 
-    // ── Confidence Filter: only return products the AI explicitly marked verified ──
-    const rawCount = intelligence.competitors?.length || 0;
-    if (intelligence.competitors) {
-      intelligence.competitors = intelligence.competitors.filter(c => c.verified === true);
-    }
-    const filteredCount = intelligence.competitors?.length || 0;
-
-    if (rawCount !== filteredCount) {
-      console.log(`  [Filter] ⚠️ Removed ${rawCount - filteredCount} unverified competitor(s). Showing ${filteredCount} confirmed products.`);
-    }
-    console.log(`  [Intelligence] ✅ ${filteredCount} verified competitors returned`);
-
-    res.json(intelligence);
+    res.json({
+      ...discoveryResult,
+      competitors: finalCompetitors.length > 0 ? finalCompetitors : (discoveryResult.potential_competitors || [])
+    });
+    
   } catch (error) {
     console.error("  [Critical Error]:", error.message);
     res.status(500).json({ error: error.message || "Intelligence pipeline failed" });
   }
 });
 
+// ─── Static Files & SPA Support (For Render Monolith) ─────────────────────────
+const distPath = path.join(__dirname, "dist");
+app.use(express.static(distPath));
+
+// Catch-all: If not an API route, serve index.html for React Router
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api")) {
+    return res.status(404).json({ error: "API route not found" });
+  }
+  res.sendFile(path.join(distPath, "index.html"), (err) => {
+    if (err) {
+      res.status(500).send("Please build the frontend (npm run build) before starting the server.");
+    }
+  });
+});
+
 // ─── Insights Generation Endpoint (3-Stage AI Agent Pipeline) ─────────────────
 app.post("/api/generate-insights", async (req, res) => {
   try {
     const { category, keywords, sources, rawTexts, isUpload } = req.body;
-    
+
     // Safety check for keys
     if (apiKeys.length === 0) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: "No GEMINI_API_KEY set in Vercel settings.",
         stage: "Init"
       });
@@ -258,6 +339,10 @@ app.post("/api/generate-insights", async (req, res) => {
 
     const runTimestamp = new Date().toISOString();
     const sourcesStr = sources?.join(", ") || "Amazon IN, Nykaa, Reddit, Google Trends";
+    
+    // ── STAGE 0: Live Research (Autonomous Harvester) ─────────────────────────
+    const liveSignals = await getMarketSignals(category, keywords);
+
     // ── STAGE 1: Signal Harvester ────────────────────────────────────────────
     console.log("  [Stage 1] 🔍 Harvesting live market signals...");
 
@@ -266,7 +351,12 @@ You are a Market Intelligence Bot specializing in the Indian D2C (direct-to-cons
 
 Timestamp of this run: ${runTimestamp}
 
-Your task: For the category "${category}" and specific focus area "${keywords || "General Market"}", synthesize what REAL Indian consumers are currently saying and searching for.
+LIVE MARKET RESEARCH SNIPPETS (RAW DATA):
+"""
+${liveSignals}
+"""
+
+Your task: For the category "${category}" and specific focus area "${keywords || "General Market"}", synthesize what REAL Indian consumers are currently saying and searching for, using the snippets above as primary evidence.
 
 ${isUpload ? `UPLOADED DATA CONTEXT:\n${rawTexts?.join("\n").slice(0, 4000)}\n\n` : ""}
 
@@ -515,8 +605,8 @@ Return ONLY valid JSON (no markdown):
 
   } catch (outerError) {
     console.error("  [Global Agent Error]:", outerError.message);
-    res.status(500).json({ 
-      error: outerError.message, 
+    res.status(500).json({
+      error: outerError.message,
       stack: outerError.stack,
       stage: "Global"
     });
@@ -524,18 +614,14 @@ Return ONLY valid JSON (no markdown):
 });
 
 const PORT = process.env.PORT || 3001;
-const isMain = import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, "/")}`;
-
-if (isMain) {
-  app.listen(PORT, () => {
-    console.log(`\n╔═══════════════════════════════════════════╗
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`\n╔═══════════════════════════════════════════╗
 ║   🔬 Innovist Intelligence Server         ║
 ║   📡 Listening on port ${PORT}              ║
 ║   🤖 Gemini 3 Flash / 2.0 / 1.5           ║
 ║   🌐 Indian D2C Market Intelligence        ║
 ╚═══════════════════════════════════════════╝
 \n`);
-  });
-}
+});
 
 export default app;

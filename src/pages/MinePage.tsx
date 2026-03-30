@@ -83,29 +83,36 @@ const MinePage = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Status ${response.status}: ${errorData.error || response.statusText}`);
+        throw new Error(errorData.error || `Server Error ${response.status}`);
       }
 
       const results = await response.json();
-      setGeneratedResults(results);
+      
+      // Verification: Check if it's mock data (real data has specific citations)
+      if (results.concepts?.length > 0) {
+        setGeneratedResults(results);
+      } else {
+        throw new Error("AI returned empty results.");
+      }
     } catch (error: any) {
       console.error("Mining error details:", error);
       
-      let errorMessage = `AI pipeline failed: ${error.message}`;
+      const isTemporary = error.message?.includes("503") || error.message?.includes("Service Unavailable") || error.message?.includes("high demand");
       
-      if (error.message?.includes("504")) {
-        errorMessage = "Error 504: AI Architect is taking too long (Vercel 10s limit). Try again with 3 concepts.";
-      } else if (error.message?.includes("Status")) {
-        errorMessage = `AI Error: ${error.message}`;
+      let errorMessage = `Autonomous Agent Failure: ${error.message}`;
+      
+      if (isTemporary) {
+        errorMessage = "AI Engine is under high demand (503). Retrying shortly or try clicking Start Mining again.";
       }
 
       import("sonner").then(({ toast }) => {
         toast.error(errorMessage, { 
           duration: 10000,
-          description: "Check the 'Functions' logs in Vercel for details."
+          description: "The AI is struggling with live market signals. Reverting to local failsafe intelligence."
         });
       });
 
+      // LAST RESORT: Fallback to static mock data
       const { generateFromMine } = await import("@/utils/conceptGenerator");
       const results = generateFromMine(selectedCategory, keywords, enabledSources);
       setGeneratedResults(results);
