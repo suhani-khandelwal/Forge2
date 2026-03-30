@@ -86,11 +86,16 @@ const MinePage = () => {
       const results = await response.json();
       setGeneratedResults(results);
     } catch (error: any) {
-      console.error("Mining error details:", {
-        message: error.message,
-        stack: error.stack,
-        url: "/api/generate-insights"
+      console.error("Mining error details:", error);
+      
+      const errorMessage = error.message?.includes("504") 
+        ? "AI Architect is taking too long to think (Vercel 10s limit). Try a more specific category."
+        : `AI pipeline failed: ${error.message}`;
+
+      import("sonner").then(({ toast }) => {
+        toast.error(errorMessage, { duration: 5000 });
       });
+
       const { generateFromMine } = await import("@/utils/conceptGenerator");
       const results = generateFromMine(selectedCategory, keywords, enabledSources);
       setGeneratedResults(results);

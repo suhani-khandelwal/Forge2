@@ -283,10 +283,10 @@ Return ONLY a valid JSON object (no markdown):
 }
 
 Rules:
-- complaints array: minimum 5 items, each with a realistic frequency percentage
-- trendingIngredients: minimum 3, searchVelocityPct is % growth YoY
-- whiteSpaces: minimum 2 specific, actionable gaps
+- complaints array: exactly 3 items
+- trendingIngredients: exactly 2 items
 - All data must reflect India-specific market reality in 2024-2025
+- Be extremely concise to ensure fast API response time.
 `;
 
     const signalRaw = await generateWithKeyRotation(signalPrompt);
@@ -321,7 +321,7 @@ ${signals.whiteSpaces?.map(w => `- ${w.gap} | Evidence: ${w.evidence} | Price Op
 
 PRICE BENCHMARKS: ${JSON.stringify(signals.priceBenchmarks || {})}
 
-Your task: Design 5-8 genuinely NOVEL product concepts that directly address these signals.
+Your task: Design exactly 3 genuinely NOVEL product concepts that directly address these signals.
 
 CRITICAL RULES:
 1. EVERY concept's "citations" must quote a SPECIFIC signal from above (e.g., "Nykaa data: 34% of reviews flag white cast")

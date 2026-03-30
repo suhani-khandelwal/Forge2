@@ -85,12 +85,17 @@ const UploadPage = () => {
 
       navigate("/loading?source=upload");
     } catch (error: any) {
-      console.error("Upload Generation Error details:", {
-        message: error.message,
-        stack: error.stack,
-        url: "/api/generate-insights"
+      console.error("Upload Generation Error details:", error);
+      
+      const errorMessage = error.message?.includes("504") 
+        ? "AI analysis is taking too long (Vercel 10s limit). Try uploading fewer files."
+        : `AI analysis failed: ${error.message}`;
+
+      import("sonner").then(({ toast }) => {
+        toast.error(errorMessage, { duration: 5000 });
       });
-      // Fallback for seamless experience
+
+      const { generateFromUpload } = await import("@/utils/conceptGenerator");
       const rawTexts = previewData.map((pd) => pd.rawText).filter(Boolean);
       if (rawTexts.length > 0) {
         const { generateFromUpload } = await import("@/utils/conceptGenerator");

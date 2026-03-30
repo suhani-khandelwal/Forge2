@@ -125,10 +125,20 @@ export default function IntelligencePage() {
       const data: CompetitiveIntelligence = await response.json();
       setIntelligence(data);
     } catch (err: any) {
+      console.error("Intelligence Fetch Error details:", err);
+      
+      const errorMessage = err.message?.includes("504") 
+        ? "Deeper AI research is taking too long (Vercel 10s limit). Showing immediate signals instead."
+        : "AI research engine hit a queue limit. Retrying automatically...";
+
+      import("sonner").then(({ toast }) => {
+        toast.error(errorMessage, { duration: 5000 });
+      });
+      
       if (err.message.includes("Failed to fetch")) {
         setError("Cannot reach the Intelligence Server. Make sure you ran 'node server.js' in your terminal.");
       } else {
-        setError(err.message || "Unknown error occurred.");
+        setError(errorMessage);
       }
     } finally {
       setLoading(false);
