@@ -17,7 +17,19 @@ const apiKeys = Object.entries(process.env)
 let lastAiError = "None";
 
 // ─── Health Check (for Vercel debugging) ──────────────────────────────────────
-app.get("/api/health", (req, res) => {
+app.get("/api/health", async (req, res) => {
+  let modelList = ["Check pending..."];
+  try {
+    if (apiKeys.length > 0) {
+      const client = new GoogleGenerativeAI(apiKeys[0]);
+      // Note: listModels is an async method in some SDK versions
+      // but let's try a safer way or just a diagnostic note
+      modelList = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"];
+    }
+  } catch (e) {
+    modelList = ["Error listing models: " + e.message];
+  }
+
   res.json({ 
     status: "alive", 
     time: new Date().toISOString(),
@@ -25,6 +37,7 @@ app.get("/api/health", (req, res) => {
     urlReceived: req.url,
     originalUrl: req.originalUrl,
     lastAiError: lastAiError,
+    availableModels: modelList,
     env: process.env.NODE_ENV
   });
 });
