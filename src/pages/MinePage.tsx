@@ -45,6 +45,7 @@ const MinePage = () => {
 
   const [selectedCategory, setSelectedCategory] = useState("skincare");
   const [enabledSources, setEnabledSources] = useState<string[]>(["amazon", "nykaa", "google"]);
+  const [url, setUrl] = useState("");
   const [keywords, setKeywords] = useState("");
 
   const toggleSource = (id: string) => {
@@ -54,32 +55,53 @@ const MinePage = () => {
   };
 
   const [isMining, setIsMining] = useState(false);
+  const [miningStatus, setMiningStatus] = useState("Initializing Intelligence Agent...");
 
   const handleMine = async () => {
     if (isMining) return;
     setIsMining(true);
+    setMiningStatus("Analyzing NPD Strategy...");
+
+    // Status Ticker for User Feedback
+    const statusSteps = [
+      "Waking Strategic NPD Agent...",
+      "Consulting Internal Formulation Database...",
+      "Generating Indian Market Breadcrumbs...",
+      "Harvesting Reddit & Nykaa Social Signals...",
+      "Identifying Strategic Product Whitespaces...",
+      "Analyzing Native D2C Competitor Pricing...",
+      "Synthesizing Formulation Science Briefs...",
+      "Finalizing Innovation Intelligence..."
+    ];
+
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      if (currentStep < statusSteps.length - 1) {
+        currentStep++;
+        setMiningStatus(statusSteps[currentStep]);
+      }
+    }, 4000);
 
     // Save selections to context
     setMineCategory(selectedCategory);
     setMineSources(enabledSources);
     setMineKeywords(keywords);
 
-    // Navigate to loading page IMMEDIATELY — the user sees the animation
-    // while the 3-stage AI pipeline runs in the background
-    navigate(`/loading?source=mine&category=${selectedCategory}`);
-
+    // Navigate to local results view if preferred, but we handle the fetch here
     try {
-      console.log(`[Mining] Requesting 3-Stage AI insights for: ${selectedCategory} | ${keywords}`);
+      console.log(`[Agent] Autonomous Mission Start: ${selectedCategory}`);
       const response = await fetch("/api/generate-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           category: selectedCategory,
-          keywords: keywords,
-          sources: enabledSources,
+          url: url,
+          conceptName: `NPD-${selectedCategory.toUpperCase()}`,
           isUpload: false
         })
       });
+
+      clearInterval(interval);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -87,35 +109,30 @@ const MinePage = () => {
       }
 
       const results = await response.json();
+      setGeneratedResults(results);
       
-      // Verification: Check if it's mock data (real data has specific citations)
-      if (results.concepts?.length > 0) {
-        setGeneratedResults(results);
-      } else {
-        throw new Error("AI returned empty results.");
-      }
+      // Auto-navigate to results once forged
+      navigate("/results");
+
     } catch (error: any) {
+      clearInterval(interval);
       console.error("Mining error details:", error);
       
-      const isTemporary = error.message?.includes("503") || error.message?.includes("Service Unavailable") || error.message?.includes("high demand");
-      
-      let errorMessage = `Autonomous Agent Failure: ${error.message}`;
-      
-      if (isTemporary) {
-        errorMessage = "AI Engine is under high demand (503). Retrying shortly or try clicking Start Mining again.";
-      }
+      const isTemporary = error.message?.includes("503") || error.message?.includes("Service Unavailable");
+      const errorMessage = isTemporary ? "AI Engine Peak Demand (503). Retrying..." : `Agent Failure: ${error.message}`;
 
       import("sonner").then(({ toast }) => {
         toast.error(errorMessage, { 
           duration: 10000,
-          description: "The AI is struggling with live market signals. Reverting to local failsafe intelligence."
+          description: "Reverting to local failsafe intelligence."
         });
       });
 
-      // LAST RESORT: Fallback to static mock data
+      // LAST RESORT: Fallback
       const { generateFromMine } = await import("@/utils/conceptGenerator");
       const results = generateFromMine(selectedCategory, keywords, enabledSources);
       setGeneratedResults(results);
+      navigate("/results");
     } finally {
       setIsMining(false);
     }
@@ -199,18 +216,36 @@ const MinePage = () => {
             </div>
           </div>
 
-          {/* Keywords/URLs */}
+          {/* URL Input */}
           <div className="mb-10">
             <h2 className="font-body font-semibold text-forest text-sm uppercase tracking-wide mb-4">
-              Keywords or URLs <span className="font-normal text-muted-foreground normal-case">(Optional)</span>
+              Enter Product URL <span className="font-normal text-muted-foreground normal-case italic">(Amazon, Nykaa, or Flipkart)</span>
+            </h2>
+            <div className="relative">
+              <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest/40" />
+              <input
+                type="text"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder="e.g. https://www.amazon.in/dp/B08G8Y8Y8Y..."
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface font-body text-sm placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-forest/20 focus:border-forest transition-all"
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground font-body">The AI will live-scrape consumer reviews from this URL to forge its intelligence.</p>
+          </div>
+
+          {/* Keywords (Optional) */}
+          <div className="mb-10 opacity-60">
+            <h2 className="font-body font-semibold text-forest text-sm uppercase tracking-wide mb-4">
+              Additional Focus Keywords <span className="font-normal text-muted-foreground normal-case">(Optional)</span>
             </h2>
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
               <textarea
                 value={keywords}
                 onChange={e => setKeywords(e.target.value)}
-                rows={3}
-                placeholder="e.g. retinol serum, niacinamide, vitamin C, anti-ageing, scalp repair…&#10;or paste product URLs from Amazon/Nykaa"
+                rows={2}
+                placeholder="e.g. skin whitening, anti-acne, dark spots..."
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface font-body text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-forest/20 focus:border-forest transition-all resize-none"
               />
             </div>
@@ -232,14 +267,19 @@ const MinePage = () => {
             className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-forest text-primary-foreground font-body font-semibold rounded-xl hover:bg-forest-light transition-all shadow-forge hover:shadow-forge-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed group"
           >
             {isMining ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Synthesizing Market Signals...
-              </>
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>NPD Agent Active</span>
+                </div>
+                <span className="text-[10px] font-normal text-primary-foreground/70 animate-pulse">
+                  {miningStatus}
+                </span >
+              </div>
             ) : (
               <>
                 <Globe className="w-4 h-4" />
-                Start Mining
+                Start Autonomous Research
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </>
             )}
