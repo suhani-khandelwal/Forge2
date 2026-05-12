@@ -821,14 +821,14 @@ export const sentimentData = [
 ];
 
 export const trendData = [
-  { month: "Sep 24", ceramide: 42, scalp: 38, sunscreen: 78, glutathione: 18 },
-  { month: "Oct 24", ceramide: 48, scalp: 44, sunscreen: 82, glutathione: 24 },
-  { month: "Nov 24", ceramide: 55, scalp: 52, sunscreen: 95, glutathione: 32 },
-  { month: "Dec 24", ceramide: 62, scalp: 60, sunscreen: 100, glutathione: 44 },
-  { month: "Jan 25", ceramide: 70, scalp: 68, sunscreen: 96, glutathione: 56 },
-  { month: "Feb 25", ceramide: 78, scalp: 75, sunscreen: 88, glutathione: 68 },
-  { month: "Mar 25", ceramide: 82, scalp: 82, sunscreen: 72, glutathione: 77 },
-  { month: "Apr 25", ceramide: 88, scalp: 88, sunscreen: 65, glutathione: 84 },
+  { month: "Oct 25", ceramide: 42, scalp: 38, sunscreen: 78, glutathione: 18 },
+  { month: "Nov 25", ceramide: 48, scalp: 44, sunscreen: 82, glutathione: 24 },
+  { month: "Dec 25", ceramide: 55, scalp: 52, sunscreen: 95, glutathione: 32 },
+  { month: "Jan 26", ceramide: 62, scalp: 60, sunscreen: 100, glutathione: 44 },
+  { month: "Feb 26", ceramide: 70, scalp: 68, sunscreen: 96, glutathione: 56 },
+  { month: "Mar 26", ceramide: 78, scalp: 75, sunscreen: 88, glutathione: 68 },
+  { month: "Apr 26", ceramide: 82, scalp: 82, sunscreen: 72, glutathione: 77 },
+  { month: "May 26", ceramide: 88, scalp: 88, sunscreen: 65, glutathione: 84 },
 ];
 
 export const gapMatrixData = [

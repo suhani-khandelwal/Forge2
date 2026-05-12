@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip
 } from "recharts";
-import { ChevronDown, ChevronUp, Tag, User, FlaskConical, Quote, ArrowRight } from "lucide-react";
+import { ChevronDown, ChevronUp, Tag, User, FlaskConical, Quote, ArrowRight, ScanLine, Hexagon } from "lucide-react";
 
 const ScoreBadge = ({ score }: { score: number }) => {
   const color = score >= 85 ? "bg-forest text-primary-foreground" : score >= 75 ? "bg-sage text-forest" : "bg-muted text-muted-foreground";
@@ -105,41 +105,94 @@ const ConceptCard = ({ concept, expanded, onToggle }: ConceptCardProps) => {
       {/* Expanded content */}
       {expanded && (
         <div className="border-t border-border bg-surface px-6 py-6 space-y-6 animate-fade-in">
-          {/* Persona */}
+          
+          {/* Scientific Blueprint Visualizer */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <User className="w-4 h-4 text-forest" />
-              <h4 className="font-body font-semibold text-forest text-sm">Target Consumer</h4>
+              <ScanLine className="w-4 h-4 text-forest" />
+              <h4 className="font-body font-semibold text-forest text-sm">Concept Blueprint</h4>
             </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="font-body font-semibold text-foreground mb-1">{concept.targetPersona?.name || "Modern Wellness Seeker"}</p>
-              <p className="text-xs text-muted-foreground mb-2">Age: {concept.targetPersona?.age || "24-38"}</p>
-              {concept.targetPersona?.concerns && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {concept.targetPersona.concerns.map(c => (
-                    <span key={c} className="px-2 py-0.5 bg-sage-light text-forest text-xs rounded-full font-body">{c}</span>
-                  ))}
+            <div className="relative bg-[#0A1A12] border border-sage/30 rounded-xl p-6 overflow-hidden flex items-center justify-center min-h-[220px]">
+              {/* Grid Background */}
+              <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, #1A3625 1px, transparent 1px), linear-gradient(to bottom, #1A3625 1px, transparent 1px)', backgroundSize: '20px 20px', opacity: 0.5 }}></div>
+              
+              {/* Product Shape representation */}
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="relative flex items-center justify-center">
+                  <Hexagon className="w-24 h-24 text-sage stroke-[1] animate-pulse" />
+                  <FlaskConical className="w-10 h-10 text-sage/80 absolute stroke-[1.5]" />
                 </div>
-              )}
-              <p className="text-xs text-muted-foreground italic">{concept.targetPersona?.lifestyle || "Urban professional seeking efficacious, data-backed solutions."}</p>
+                <div className="mt-4 text-[11px] font-mono text-sage tracking-widest uppercase border border-sage/30 px-3 py-1 rounded bg-sage/10 backdrop-blur-sm">
+                  {concept.format}
+                </div>
+              </div>
+
+              {/* Data Nodes pointing to product */}
+              <div className="absolute z-10 left-4 top-8 flex items-center gap-2">
+                <div className="text-[10px] font-mono text-sage/90 bg-sage/10 px-2 py-1 rounded border border-sage/20 max-w-[120px] truncate">
+                  TGT: {concept.targetPersona?.name?.split(' ')[0] || "WELLNESS"}
+                </div>
+                <div className="w-8 h-px bg-sage/50"></div>
+              </div>
+              <div className="absolute z-10 left-4 bottom-8 flex items-center gap-2">
+                <div className="text-[10px] font-mono text-sage/90 bg-sage/10 px-2 py-1 rounded border border-sage/20">
+                  DIFF: {concept.scores.novelty || 85}/100
+                </div>
+                <div className="w-12 h-px bg-sage/50" style={{ transform: 'rotate(-15deg)', transformOrigin: 'left' }}></div>
+              </div>
+              
+              <div className="absolute z-10 right-4 top-10 flex items-center gap-2">
+                <div className="w-10 h-px bg-sage/50" style={{ transform: 'rotate(10deg)', transformOrigin: 'right' }}></div>
+                <div className="text-[10px] font-mono text-sage/90 bg-sage/10 px-2 py-1 rounded border border-sage/20">
+                  ACTIVES: {concept.ingredients?.[0]?.slice(0, 15) || "COMPLEX"}
+                </div>
+              </div>
+              <div className="absolute z-10 right-4 bottom-8 flex items-center gap-2">
+                <div className="w-8 h-px bg-sage/50"></div>
+                <div className="text-[10px] font-mono text-sage/90 bg-sage/10 px-2 py-1 rounded border border-sage/20">
+                  MRP: ₹{concept.priceINR}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Ingredients / Formulation */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <FlaskConical className="w-4 h-4 text-forest" />
-              <h4 className="font-body font-semibold text-forest text-sm">
-                Strategic Formulation
-              </h4>
+          {/* Persona */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <User className="w-4 h-4 text-forest" />
+                <h4 className="font-body font-semibold text-forest text-sm">Target Consumer</h4>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-4 h-full">
+                <p className="font-body font-semibold text-foreground mb-1">{concept.targetPersona?.name || "Modern Wellness Seeker"}</p>
+                <p className="text-xs text-muted-foreground mb-2">Age: {concept.targetPersona?.age || "24-38"}</p>
+                {concept.targetPersona?.concerns && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {concept.targetPersona.concerns.map(c => (
+                      <span key={c} className="px-2 py-0.5 bg-sage-light text-forest text-xs rounded-full font-body">{c}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {(concept.ingredients || ["Biotech Active", "Botanical Complex"]).map(ing => (
-                <span key={ing} className="px-3 py-1 bg-forest text-primary-foreground text-xs rounded-full font-body">
-                  {ing}
-                </span>
-              ))}
+            {/* Ingredients / Formulation */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <FlaskConical className="w-4 h-4 text-forest" />
+                <h4 className="font-body font-semibold text-forest text-sm">
+                  Strategic Formulation
+                </h4>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col justify-center">
+                <div className="flex flex-wrap gap-2">
+                  {(concept.ingredients || ["Biotech Active", "Botanical Complex"]).map(ing => (
+                    <span key={ing} className="px-3 py-1 bg-forest text-primary-foreground text-xs rounded-full font-body">
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

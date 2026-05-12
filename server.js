@@ -192,12 +192,17 @@ scores.novelty (0–100) — How differentiated is this concept from existing co
 
 IMPORTANT: Scores must vary between concepts. One concept should typically score higher on novelty and lower on competition than the other.
 
-For topCompetitors: List 3 real, existing Indian D2C brands (e.g., Minimalist, Mamaearth, Dot & Key, The Derma Co, Plum, mCaffeine, WOW, Pilgrim, Fixderma, etc.) that compete most directly with this concept.
+For topCompetitors: List exactly 5 real, existing Indian D2C brands that compete most directly with this concept. You must strictly structure them as:
+1. The Market Leader (The dominant mass-market incumbent)
+2. The Premium Alternative (A high-end or clinical brand)
+3. The Direct Threat (A D2C brand operating in the exact same niche)
+4. Emerging Brand 1
+5. Emerging Brand 2
 - keyIngredients: List 2–3 of the competitor's primary active ingredients exactly as they appear on the product label.
 - keyClaims: Write the competitor's single most prominent marketing claim as it appears on their product page or packaging.
 
 For gapMatrixData: Generate one entry per concept. "name" must match the concept's name. "x" is the competition score (0-100). "y" is Unmet Consumer Demand (0-100, higher = more demand based on market signals).
-For trendData: Use key ingredient names from your generated concepts as data keys. Show realistic trending upward curves for the last 8 months (Sep 24–Apr 25).
+For trendData: Use key ingredient names from your generated concepts as data keys. Show realistic trending upward curves for the last 8 months (Oct 25–May 26).
 For sentimentData: Use relevant consumer complaint/praise themes from the market signals.
 
 Generate a market intelligence report. Return ONLY valid JSON:
@@ -219,14 +224,16 @@ Generate a market intelligence report. Return ONLY valid JSON:
         "differentiation": "string",
         "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
         "topCompetitors": [
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
           { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
           { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
         ]
       }
     },
     {
-      "id": ${Math.floor(Math.random() * 10000)},
+      "id": ${Math.floor(Math.random() * 10000) + 1},
       "name": "string",
       "tagline": "string", 
       "category": "${category}",
@@ -240,7 +247,55 @@ Generate a market intelligence report. Return ONLY valid JSON:
         "differentiation": "string",
         "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
         "topCompetitors": [
+          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
           { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
+        ]
+      }
+    },
+    {
+      "id": ${Math.floor(Math.random() * 10000) + 2},
+      "name": "string",
+      "tagline": "string", 
+      "category": "${category}",
+      "format": "string",
+      "ingredients": ["string"],
+      "rationale": "string",
+      "priceINR": "₹...",
+      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
+      "competitiveIntelligence": {
+        "whiteSpace": "string",
+        "differentiation": "string",
+        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
+        "topCompetitors": [
+          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
+        ]
+      }
+    },
+    {
+      "id": ${Math.floor(Math.random() * 10000) + 3},
+      "name": "string",
+      "tagline": "string", 
+      "category": "${category}",
+      "format": "string",
+      "ingredients": ["string"],
+      "rationale": "string",
+      "priceINR": "₹...",
+      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
+      "competitiveIntelligence": {
+        "whiteSpace": "string",
+        "differentiation": "string",
+        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
+        "topCompetitors": [
+          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
           { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
           { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
         ]
@@ -251,14 +306,14 @@ Generate a market intelligence report. Return ONLY valid JSON:
     { "name": "ConceptName", "x": 50, "y": 80 }
   ],
   "trendData": [
-    { "month": "Sep 24", "ingredient1": 60, "ingredient2": 45 },
-    { "month": "Oct 24", "ingredient1": 65, "ingredient2": 50 },
-    { "month": "Nov 24", "ingredient1": 70, "ingredient2": 55 },
-    { "month": "Dec 24", "ingredient1": 78, "ingredient2": 62 },
-    { "month": "Jan 25", "ingredient1": 82, "ingredient2": 70 },
-    { "month": "Feb 25", "ingredient1": 86, "ingredient2": 75 },
-    { "month": "Mar 25", "ingredient1": 90, "ingredient2": 82 },
-    { "month": "Apr 25", "ingredient1": 88, "ingredient2": 85 }
+    { "month": "Oct 25", "ingredient1": 60, "ingredient2": 45 },
+    { "month": "Nov 25", "ingredient1": 65, "ingredient2": 50 },
+    { "month": "Dec 25", "ingredient1": 70, "ingredient2": 55 },
+    { "month": "Jan 26", "ingredient1": 78, "ingredient2": 62 },
+    { "month": "Feb 26", "ingredient1": 82, "ingredient2": 70 },
+    { "month": "Mar 26", "ingredient1": 86, "ingredient2": 75 },
+    { "month": "Apr 26", "ingredient1": 90, "ingredient2": 82 },
+    { "month": "May 26", "ingredient1": 88, "ingredient2": 85 }
   ],
   "sentimentData": [
     { "theme": "theme", "positive": 80, "negative": 20 }
