@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { mockConcepts, uploadConcepts, sentimentData as mockSentimentData, trendData as mockTrendData, gapMatrixData as mockGapMatrixData } from "@/data/mockData";
 import Navbar from "@/components/Navbar";
@@ -13,7 +13,13 @@ const ResultsPage = () => {
   const [searchParams] = useSearchParams();
   const source = searchParams.get("source") || "mine";
   const isUpload = source === "upload";
-  const { parsedData, generatedResults } = useUploadContext();
+  const { parsedData, generatedResults, isLocalFallback } = useUploadContext();
+
+  useEffect(() => {
+    if (isLocalFallback) {
+      console.error('[FORGE] CRITICAL: Local fallback data detected in results');
+    }
+  }, [isLocalFallback]);
 
   // Use generated results from context if available, fallback to mock data
   const allConcepts = (generatedResults?.concepts && generatedResults.concepts.length > 0)
@@ -80,6 +86,11 @@ const ResultsPage = () => {
 
   return (
     <div className="min-h-screen bg-surface">
+      {isLocalFallback && (
+        <div className="w-full bg-red-600 text-white text-center py-3 font-bold text-sm z-50 relative">
+          ⚠️ DEVELOPMENT MODE: Local fallback active — AI engine unavailable
+        </div>
+      )}
       <Navbar />
       <div className="pt-16">
         {/* Header */}

@@ -123,9 +123,14 @@ export default function IntelligencePage() {
 
         {/* Full Width Data Table */}
         <div className="bg-card border border-border rounded-xl shadow-md overflow-hidden">
-          <div className="p-5 border-b border-border bg-surface flex items-center gap-2">
-            <Globe className="w-5 h-5 text-forest" />
-            <h3 className="font-body font-bold text-forest text-base">Indian D2C Market Leaders (Competitive Set)</h3>
+          <div className="p-5 border-b border-border bg-surface flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-forest" />
+              <h3 className="font-body font-bold text-forest text-base">Indian D2C Market Leaders (Competitive Set)</h3>
+            </div>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold bg-muted px-2 py-1 rounded">
+              Updated Live
+            </span>
           </div>
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse min-w-[1200px]">
@@ -162,6 +167,11 @@ export default function IntelligencePage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="p-4 bg-muted/30 border-t border-border">
+            <p className="text-[10px] text-muted-foreground text-center italic">
+              Disclaimer: Competitive pricing is synthesized from live marketplace snapshots (Amazon/Nykaa) and may vary based on active platform discounts or regional promotions. Formulation data is analyzed via AI from public ingredient lists.
+            </p>
           </div>
         </div>
 

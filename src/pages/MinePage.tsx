@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
-import { Globe, ChevronRight, Search, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { Globe, ChevronRight, Search, ToggleLeft, ToggleRight } from "lucide-react";
 import { useUploadContext } from "@/context/UploadContext";
-import { generateFromMine } from "@/utils/conceptGenerator";
 
 const categories = [
   {
@@ -54,88 +53,20 @@ const MinePage = () => {
     );
   };
 
-  const [isMining, setIsMining] = useState(false);
-  const [miningStatus, setMiningStatus] = useState("Initializing Intelligence Agent...");
-
-  const handleMine = async () => {
-    if (isMining) return;
-    setIsMining(true);
-    setMiningStatus("Analyzing NPD Strategy...");
-
-    // Status Ticker for User Feedback
-    const statusSteps = [
-      "Waking Strategic NPD Agent...",
-      "Consulting Internal Formulation Database...",
-      "Generating Indian Market Breadcrumbs...",
-      "Harvesting Reddit & Nykaa Social Signals...",
-      "Identifying Strategic Product Whitespaces...",
-      "Analyzing Native D2C Competitor Pricing...",
-      "Synthesizing Formulation Science Briefs...",
-      "Finalizing Innovation Intelligence..."
-    ];
-
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      if (currentStep < statusSteps.length - 1) {
-        currentStep++;
-        setMiningStatus(statusSteps[currentStep]);
-      }
-    }, 4000);
-
+  const handleMine = () => {
     // Save selections to context
     setMineCategory(selectedCategory);
     setMineSources(enabledSources);
     setMineKeywords(keywords);
 
-    // Navigate to local results view if preferred, but we handle the fetch here
-    try {
-      console.log(`[Agent] Autonomous Mission Start: ${selectedCategory}`);
-      const response = await fetch("/api/generate-insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: selectedCategory,
-          url: url,
-          conceptName: `NPD-${selectedCategory.toUpperCase()}`,
-          isUpload: false
-        })
-      });
+    const params = new URLSearchParams();
+    params.set("category", selectedCategory);
+    if (keywords) params.set("keywords", keywords);
+    if (url) params.set("url", url);
+    params.set("source", "mine");
 
-      clearInterval(interval);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server Error ${response.status}`);
-      }
-
-      const results = await response.json();
-      setGeneratedResults(results);
-      
-      // Auto-navigate to results once forged
-      navigate("/results");
-
-    } catch (error: any) {
-      clearInterval(interval);
-      console.error("Mining error details:", error);
-      
-      const isTemporary = error.message?.includes("503") || error.message?.includes("Service Unavailable");
-      const errorMessage = isTemporary ? "AI Engine Peak Demand (503). Retrying..." : `Agent Failure: ${error.message}`;
-
-      import("sonner").then(({ toast }) => {
-        toast.error(errorMessage, { 
-          duration: 10000,
-          description: "Reverting to local failsafe intelligence."
-        });
-      });
-
-      // LAST RESORT: Fallback
-      const { generateFromMine } = await import("@/utils/conceptGenerator");
-      const results = generateFromMine(selectedCategory, keywords, enabledSources);
-      setGeneratedResults(results);
-      navigate("/results");
-    } finally {
-      setIsMining(false);
-    }
+    // Immediately navigate to loading page, which handles the SSE stream
+    navigate(`/loading?${params.toString()}`);
   };
 
   return (
@@ -260,29 +191,24 @@ const MinePage = () => {
             </p>
           </div>
 
+          {/* Error Message */}
+          {connectionError && (
+            <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-sm font-body">
+              {connectionError}
+            </div>
+          )}
+
           {/* CTA */}
           <button
             onClick={handleMine}
-            disabled={enabledSources.length === 0 || isMining}
+            disabled={enabledSources.length === 0}
             className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-forest text-primary-foreground font-body font-semibold rounded-xl hover:bg-forest-light transition-all shadow-forge hover:shadow-forge-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed group"
           >
-            {isMining ? (
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>NPD Agent Active</span>
-                </div>
-                <span className="text-[10px] font-normal text-primary-foreground/70 animate-pulse">
-                  {miningStatus}
-                </span >
-              </div>
-            ) : (
-              <>
-                <Globe className="w-4 h-4" />
-                Start Autonomous Research
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </>
-            )}
+            <>
+              <Globe className="w-4 h-4" />
+              Start Autonomous Research
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </>
           </button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { Upload, FileText, X, Table, ChevronRight, AlertCircle, Loader2 } from "
 import { useUploadContext } from "@/context/UploadContext";
 import { parseFile } from "@/utils/fileParser";
 import { generateFromUpload } from "@/utils/conceptGenerator";
+import { getApiUrl } from "@/lib/api";
 import type { ParsedFileData } from "@/context/UploadContext";
 
 const UploadPage = () => {
@@ -65,7 +66,7 @@ const UploadPage = () => {
       console.log(`[Upload Analysis] Processing ${rawTexts.length} files with Gemini Core...`);
 
       // Generate truly dynamic results based on selection from the backend
-      const response = await fetch("/api/generate-insights", {
+      const response = await fetch(getApiUrl("api/generate-insights"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

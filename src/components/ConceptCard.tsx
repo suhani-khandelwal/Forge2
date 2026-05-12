@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip
 } from "recharts";
-import { ChevronDown, ChevronUp, Tag, User, FlaskConical, DollarSign, Quote, ArrowRight } from "lucide-react";
+import { ChevronDown, ChevronUp, Tag, User, FlaskConical, Quote, ArrowRight } from "lucide-react";
 
 const ScoreBadge = ({ score }: { score: number }) => {
   const color = score >= 85 ? "bg-forest text-primary-foreground" : score >= 75 ? "bg-sage text-forest" : "bg-muted text-muted-foreground";
@@ -54,8 +54,8 @@ const ConceptCard = ({ concept, expanded, onToggle }: ConceptCardProps) => {
             <span>{concept.format}</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
-            <DollarSign className="w-3.5 h-3.5 text-sage" />
-            <span>{concept.priceINR}</span>
+            <span className="text-sage font-bold">₹</span>
+            <span>{concept.priceINR || "N/A"}</span>
           </div>
         </div>
 

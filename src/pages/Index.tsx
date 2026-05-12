@@ -3,10 +3,16 @@ import heroImg from "@/assets/hero-bg.png";
 import Navbar from "@/components/Navbar";
 import { Link } from "react-router-dom";
 import { ArrowRight, Database, Globe, Sparkles, TrendingUp, Users, Zap, Star, MessageSquare } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 
 
 const Index = () => {
+  useEffect(() => {
+    // Fire warmup ping to wake up Render backend
+    fetch(getApiUrl("api/health")).catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

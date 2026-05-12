@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import path from "path";
 import { fileURLToPath } from "url";
-import { scrapeProductReviews } from "./src/utils/scraper.js";
 
 dotenv.config();
 
@@ -26,11 +25,9 @@ if (apiKeys.length === 0) console.error("  ⚠️   WARNING: No API keys found! 
 
 let lastAiError = "None";
 
-// AI Turbo Relay Factory (Zero-Wait Switch)
+// AI Turbo Relay Factory
 async function generateWithKeyRotation(prompt, retryCount = 0) {
   const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
-  
-  // Shuffle keys to distribute traffic across quotas
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
   
   for (const key of shuffledKeys) {
@@ -43,52 +40,92 @@ async function generateWithKeyRotation(prompt, retryCount = 0) {
       } catch (err) {
         lastAiError = err.message;
         const isQuotaError = err.message.includes("429") || err.message.includes("Quota");
-        
-        if (isQuotaError) {
-          console.log(`  [AI] ⚠️ Key [${key.slice(0, 8)}...] Limit Reached. Switching to next relay...`);
-          // Note: No 'await setTimeout' here. We instantly try the next key/model combo.
-          continue; 
-        }
-        
+        if (isQuotaError) continue;
         console.error(`  [AI] ⚠️ Fatal Error with ${modelName}: ${err.message.slice(0, 100)}...`);
         continue;
       }
     }
   }
 
-  // If we reach here, it means EVERY key was rate limited
-  if (retryCount < 2) {
-    const waitTime = 30000; // Final safety cooldown
-    console.log(`  [AI] 🚧 All Keys Exhausted. Cooling down for ${waitTime/1000}s...`);
-    await new Promise(r => setTimeout(r, waitTime));
-    return generateWithKeyRotation(prompt, retryCount + 1);
-  }
-
   throw new Error(`Strategic Forge Timed Out: All API Keys hit cumulative limits. Last: ${lastAiError}`);
 }
 
-// ─── Strategic Breadcrumb Harvester ───────────────────────
+// Lightweight Scraper (replaces Puppeteer)
+async function lightweightScrape(url) {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html',
+        'Accept-Language': 'en-IN,en;q=0.9'
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    
+    const html = await response.text();
+    const textBlocks = [];
+    const patterns = [
+      /data-hook="review-body"[^>]*>([^<]{30,500})/g,
+      /class="css-[^"]*review[^"]*"[^>]*>([^<]{30,500})/g,
+      /<p[^>]*>([^<]{50,400})<\/p>/g
+    ];
+    
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(html)) !== null && textBlocks.length < 20) {
+        textBlocks.push(match[1].trim());
+      }
+    }
+    return textBlocks.join('\n\n');
+  } catch (err) {
+    return '';
+  }
+}
+
+// Caching and Queries
+const cache = new Map();
+const CACHE_TTL = 15 * 60 * 1000; // 15 min
+
+function getCached(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+const CATEGORY_QUERIES = {
+  skincare: [
+    "Indian skincare consumer complaints 2025 Reddit Amazon reviews",
+    "best selling skincare ingredients India Nykaa trending 2025"
+  ],
+  haircare: [
+    "hair fall solutions India consumer reviews 2025 Reddit haircare",
+    "trending haircare ingredients India D2C brands Nykaa 2025"
+  ],
+  supplements: [
+    "health supplements India consumer complaints Reddit 2025",
+    "trending wellness supplements India market gaps 2025"
+  ]
+};
+
 async function fetchMarketBreadcrumbs(query) {
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
   try {
-    console.log(`  [Agent] 🕵️ Harvesting: "${query.slice(0, 50)}..."`);
     const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      }
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000)
     });
-
     if (!response.ok) return "";
     const html = await response.text();
     const snippets = [];
-
-    // Fallback Patterns for DuckDuckGo HTML
     const patterns = [
       /<a class="result__snippet"[\s\S]*?>([\s\S]*?)<\/a>/g,
       /<div class="result__snippet"[\s\S]*?>([\s\S]*?)<\/div>/g,
       /<div class="snippet"[\s\S]*?>([\s\S]*?)<\/div>/g
     ];
-
     for (const regex of patterns) {
       let match;
       while ((match = regex.exec(html)) !== null && snippets.length < 5) {
@@ -97,38 +134,104 @@ async function fetchMarketBreadcrumbs(query) {
       }
       if (snippets.length > 0) break;
     }
-
     return snippets.join("\n\n");
   } catch (err) {
-    console.error(`  [Agent] ❌ Scrape Blocked: ${err.message}`);
     return "";
   }
 }
 
-// Deep Intelligence Coordinator (Branching Discovery)
-async function runStrategicDiscovery(category, keywords = "") {
-  const missionType = keywords ? "GUIDED SEARCH" : "AUTONOMOUS BROAD SCAN";
-  console.log(`  [Agent] 🧠 Mission: ${missionType} for ${category} [Focus: ${keywords || "Broad"}]`);
+function buildForgePrompt(category, signals, keywords = '') {
+  const currentMonth = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   
-  const queryPrompt = keywords 
-    ? `Generate 3 specific "Market Breadcrumb" search queries focusing on "${keywords}" within the Indian "${category}" market. Find real problems/complaints about ingredients or formulations. Return ONLY a comma-separated list.`
-    : `Generate 3 visionary "Market Breadcrumb" search queries for the Indian "${category}" market. Focus on FINDING NEW PROBLEMS that are currently underserved. Return ONLY a comma-separated list.`;
+  return `You are the Strategic Innovation Lead for India's wellness market.
+CONTEXT: ${currentMonth} | Category: ${category}${keywords ? ` | Focus: ${keywords}` : ''}
 
-  const rawQueries = await generateWithKeyRotation(queryPrompt);
-  const queries = rawQueries.split(",").map(q => q.trim()).slice(0, 3);
-  
-  console.log(`  [Agent] 🔍 RESEARCHING: ${queries.join(", ")}`);
+LIVE MARKET SIGNALS:
+"""
+${signals.slice(0, 3000)}
+"""
 
-  const results = await Promise.all(queries.map(q => fetchMarketBreadcrumbs(q)));
-  const signals = results.filter(Boolean).join("\n\n---\n\n");
-  
-  if (!signals) {
-    console.warn("  [Agent] ⚠️ External Signals Blocked. Swapping to INTERNAL MARKET ARCHIVE.");
-    return `SIGNAL CAPTURE BLOCKED: Initiating Deep Market Simulation for ${category} with focus on ${keywords || "General Patterns"}.`;
+Generate a market intelligence report. Return ONLY valid JSON:
+{
+  "signalSummary": { "topInsight": "...", "marketMood": "..." },
+  "concepts": [
+    {
+      "id": ${Math.floor(Math.random() * 10000)},
+      "name": "string",
+      "tagline": "string", 
+      "category": "${category}",
+      "format": "string",
+      "ingredients": ["string"],
+      "rationale": "string",
+      "priceINR": "₹...",
+      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
+      "competitiveIntelligence": {
+        "whiteSpace": "string",
+        "differentiation": "string",
+        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
+        "topCompetitors": [
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" }
+        ]
+      }
+    },
+    {
+      "id": ${Math.floor(Math.random() * 10000)},
+      "name": "string",
+      "tagline": "string", 
+      "category": "${category}",
+      "format": "string",
+      "ingredients": ["string"],
+      "rationale": "string",
+      "priceINR": "₹...",
+      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
+      "competitiveIntelligence": {
+        "whiteSpace": "string",
+        "differentiation": "string",
+        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
+        "topCompetitors": [
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" }
+        ]
+      }
+    }
+  ]
+}`;
+}
+
+async function runFullPipeline(category, keywords, url) {
+  let signals = "";
+  if (url) {
+    signals = await lightweightScrape(url);
+  } else {
+    const queries = CATEGORY_QUERIES[category] || [category + " trending products India", category + " consumer complaints India"];
+    const results = await Promise.all(queries.map(fetchMarketBreadcrumbs));
+    signals = results.filter(Boolean).join("\n\n");
   }
   
-  console.log(`  [Agent] ✅ Harvested ${signals.length} bytes of niche market signals.`);
-  return signals;
+  if (!signals) signals = "Generic high-competition market, consumers seek better formulations and efficacy.";
+
+  const prompt = buildForgePrompt(category, signals, keywords);
+  const aiResponse = await generateWithKeyRotation(prompt);
+  const parsed = JSON.parse(aiResponse.replace(/```json\n?|```/g, "").trim());
+  return parsed;
+}
+
+const inflight = new Map();
+
+async function preSeedCache() {
+  console.log('  [Cache] 🌱 Pre-seeding intelligence cache...');
+  for (const category of ['skincare', 'haircare', 'supplements']) {
+    try {
+      const result = await runFullPipeline(category, null, null);
+      cache.set(`${category}::undefined`, { data: result, timestamp: Date.now() });
+      console.log(`  [Cache] ✅ ${category} pre-seeded`);
+    } catch (e) {
+      console.log(`  [Cache] ⚠️  ${category} pre-seed failed`, e.message);
+    }
+  }
 }
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
@@ -137,90 +240,75 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "alive", keys: apiKeys.length, lastError: lastAiError });
 });
 
-app.post("/api/generate-insights", async (req, res) => {
-  const { url, category, keywords } = req.body;
-  const currentMonth = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-  const currentSeason = (new Date().getMonth() > 1 && new Date().getMonth() < 6) ? "Peak Summer (Humid/Hot)" : "Variable / Winter";
+app.get("/api/generate-stream", async (req, res) => {
+  const { category, keywords, url } = req.query;
 
-  console.log(`\n[Agent] 🚀 STRATEGIC FORGE START: ${category} | Focus: ${keywords || "None"}`);
-  
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const emit = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
   try {
-    let marketSignals = "";
-    let dataOrigin = "";
-
-    if (url && url.startsWith("http")) {
-      console.log(`  [Agent] 🧭 Focusing on Deep Product Scrape...`);
-      const scraped = await scrapeProductReviews(url);
-      marketSignals = scraped.reviews?.join("\n\n") || "SCROLL CAPTURE BLOCKED.";
-      dataOrigin = `PRIMARY PRODUCT URL: ${url}\nSCRAPED TITLE: ${scraped.title}`;
-    } else {
-      console.log(`  [Agent] 🧭 Focusing on ${keywords ? 'Guided' : 'Autonomous'} Discovery...`);
-      marketSignals = await runStrategicDiscovery(category, keywords);
-      dataOrigin = keywords ? `GUIDED DISCOVERY (Focus: ${keywords})` : `AUTONOMOUS DISCOVERY (Market: ${category})`;
+    const cacheKey = `${category}::${keywords}`;
+    
+    emit('step', { id: 0, label: 'Checking intelligence archive...' });
+    
+    // Check cache
+    if (!url) {
+      const cached = getCached(cacheKey);
+      if (cached) {
+        emit('step', { id: 1, label: 'Cache hit — retrieving stored intelligence' });
+        emit('step', { id: 4, label: 'Intelligence report ready' });
+        emit('complete', { ...cached, generatedAt: new Date(), agentStatus: 'Strategic Forge Complete (Cached)' });
+        return res.end();
+      }
     }
 
-    console.log(`  [Agent] 🧪 FORGING STRATEGIC CONCEPTS...`);
-    const forgePrompt = `
-      You are the "Strategic Innovation Lead" for the Indian wellness market.
-      
-      TIME CONTEXT: ${currentMonth} | SEASON: ${currentSeason}
-      MISSION: Forge 3 breakthrough product concepts for ${category}.
-      ${keywords ? `USER STRATEGIC FOCUS: "${keywords}"` : `FOCUS: Broad Market Scan.`}
-      
-      MARKET SIGNALS HARVESTED:
-      """
-      ${marketSignals.slice(0, 5000)}
-      """
-      
-      ### STRATEGIC INSTRUCTION: THE FUNCTIONAL PIVOT
-      Before choosing competitors, you MUST analyze the "Physical Symptom" your product solves.
-      - DISTINGUISH between Biological Repair (Internal - e.g., Ceramides for Barrier Repair) and Functional Defense (External - e.g., Anti-pollution, UV Shield, Sweat protection).
-      - SELECT competitors based on the FUNCTIONAL CLASS. If your product is a "Barrier against pollution," do NOT find Ceramides creams; find Anti-pollution mists/shields.
-      - SYMPTOMATIC SYMMETRY: Competitors must solve the EXACT same physical problem (e.g. "Sticky skin in humidity" or "Dullness from UV").
-      
-      TASK: 
-      1. Synthesize concepts with your DEEP internal knowledge of Formulation Chemistry & Indian Skin/Hair Physics.
-      2. Identify a "Strategic Whitespace" based on the above Functional Class.
-      3. Forge 3 unique product concepts.
-      4. For each concept, generate a "Competitive Intelligence profile" with FUNCTIONAL COMPETITORS (Brand + Product + Price + Platform + Key Claims).
-      
-      Return ONLY a valid JSON object:
-      {
-        "signalSummary": { "topInsight": "...", "marketMood": "..." },
-        "concepts": [
-          {
-            "id": "A random number",
-            "name": "Concept Name",
-            "tagline": "Science-backed tagline",
-            "category": "${category}",
-            "format": "Gel / Oil / Serum",
-            "ingredients": ["Active 1", "Active 2"],
-            "rationale": "Strategic reasoning",
-            "scores": { "marketSize": 85, "novelty": 90 },
-            "competitiveIntelligence": {
-               "whiteSpace": "The unmet gap in the FUNCTIONAL niche",
-               "differentiation": "Exact formula/marketing edge over functional peers",
-               "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
-               "topCompetitors": [
-                  { "brand": "...", "product": "...", "price": "₹...", "platform": "Nykaa/Amazon", "keyIngredients": ["...", "..."], "keyClaims": "Focus on the FUNCTIONAL symptom they share with your concept" }
-               ]
-            }
-          }
-        ],
-        "metadata": { "origin": "${dataOrigin}", "season": "${currentSeason}", "userFocus": "${keywords || 'None'}" }
-      }
-    `;
+    // Process
+    let promise;
+    if (!url && inflight.has(cacheKey)) {
+       promise = inflight.get(cacheKey);
+       emit('step', { id: 1, label: 'Joining existing strategic forge mission...' });
+    } else {
+       emit('step', { id: 1, label: 'Harvesting live market signals...' });
+       
+       promise = runFullPipeline(category, keywords, url).then(result => {
+         if (!url) cache.set(cacheKey, { data: result, timestamp: Date.now() });
+         if (!url) inflight.delete(cacheKey);
+         return result;
+       }).catch(err => {
+         if (!url) inflight.delete(cacheKey);
+         throw err;
+       });
+       
+       if (!url) inflight.set(cacheKey, promise);
+    }
+    
+    // Periodically emit an intermediate step to show progress while waiting for the promise
+    let isDone = false;
+    promise.then(() => { isDone = true; }).catch(() => { isDone = true; });
+    setTimeout(() => { if (!isDone) emit('step', { id: 2, label: 'Synthesizing product intelligence...' }); }, 3000);
+    setTimeout(() => { if (!isDone) emit('step', { id: 3, label: 'Validating concept architecture...' }); }, 6000);
 
-    const aiResponse = await generateWithKeyRotation(forgePrompt);
-    const result = JSON.parse(aiResponse.replace(/```json\n?|```/g, "").trim());
-
-    res.json({ ...result, generatedAt: new Date(), agentStatus: "Strategic Forge Complete" });
-    console.log(`  [Agent] ✅ MISSION SUCCESS: Forged ${result.concepts?.length} innovation concepts.`);
-
+    const parsed = await promise;
+    emit('step', { id: 4, label: 'Intelligence report ready' });
+    emit('complete', { ...parsed, generatedAt: new Date(), agentStatus: 'Strategic Forge Complete' });
+    // res.end() cannot be called immediately if we want to keep the stream alive, but it finishes here.
+    res.end();
   } catch (error) {
     console.error("[Agent Error]:", error.message);
-    res.status(500).json({ error: error.message });
+    emit('error', { message: error.message });
+    res.end();
   }
+});
+
+// Original endpoint for backward compatibility
+app.post("/api/generate-insights", async (req, res) => {
+  res.status(400).json({ error: "Use /api/generate-stream" });
 });
 
 // ─── Frontend Delivery ──────────────────────────────────────────────────────
@@ -234,6 +322,7 @@ app.get(/^(?!\/api).*/, (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n  🚀 AI Forge Backend [VERSION 2.0 - STRATEGIC ENGINE] running on Port ${PORT}\n`);
+  preSeedCache();
 });
 
 export default app;

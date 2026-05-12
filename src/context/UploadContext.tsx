@@ -16,12 +16,19 @@ export interface GeneratedResults {
     trendData: { month: string;[key: string]: string | number }[];
     gapMatrixData: { name: string; x: number; y: number; size: number }[];
     generatedAt?: string;
+    agentStatus?: string;
     signalSummary?: {
         totalComplaints: number;
         topComplaint: string;
         topTrend: string;
         marketGrowthPct: number;
     };
+}
+
+export interface PipelineStep {
+    id: number;
+    label: string;
+    status: 'pending' | 'active' | 'done';
 }
 
 interface UploadContextType {
@@ -39,6 +46,12 @@ interface UploadContextType {
     setMineSources: (sources: string[]) => void;
     mineKeywords: string;
     setMineKeywords: (kw: string) => void;
+    isLocalFallback: boolean;
+    setIsLocalFallback: (val: boolean) => void;
+    pipelineStatus: PipelineStep[];
+    setPipelineStatus: (status: PipelineStep[]) => void;
+    connectionError: string | null;
+    setConnectionError: (error: string | null) => void;
 }
 
 const UploadContext = createContext<UploadContextType | null>(null);
@@ -51,6 +64,9 @@ export const UploadProvider = ({ children }: { children: ReactNode }) => {
     const [mineCategory, setMineCategory] = useState("skincare");
     const [mineSources, setMineSources] = useState<string[]>(["amazon", "nykaa", "google"]);
     const [mineKeywords, setMineKeywords] = useState("");
+    const [isLocalFallback, setIsLocalFallback] = useState(false);
+    const [pipelineStatus, setPipelineStatus] = useState<PipelineStep[]>([]);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
 
     return (
         <UploadContext.Provider value={{
@@ -61,6 +77,9 @@ export const UploadProvider = ({ children }: { children: ReactNode }) => {
             mineCategory, setMineCategory,
             mineSources, setMineSources,
             mineKeywords, setMineKeywords,
+            isLocalFallback, setIsLocalFallback,
+            pipelineStatus, setPipelineStatus,
+            connectionError, setConnectionError,
         }}>
             {children}
         </UploadContext.Provider>
