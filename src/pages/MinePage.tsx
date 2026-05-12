@@ -39,7 +39,8 @@ const MinePage = () => {
     setMineCategory,
     setMineSources,
     setMineKeywords,
-    setGeneratedResults
+    setGeneratedResults,
+    connectionError
   } = useUploadContext();
 
   const [selectedCategory, setSelectedCategory] = useState("skincare");
