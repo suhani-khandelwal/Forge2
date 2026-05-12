@@ -821,21 +821,21 @@ export const sentimentData = [
 ];
 
 export const trendData = [
-  { month: "Jan 24", ceramide: 42, scalp: 38, sunscreen: 78, glutathione: 18 },
-  { month: "Feb 24", ceramide: 48, scalp: 44, sunscreen: 82, glutathione: 24 },
-  { month: "Mar 24", ceramide: 55, scalp: 52, sunscreen: 95, glutathione: 32 },
-  { month: "Apr 24", ceramide: 62, scalp: 60, sunscreen: 100, glutathione: 44 },
-  { month: "May 24", ceramide: 70, scalp: 68, sunscreen: 96, glutathione: 56 },
-  { month: "Jun 24", ceramide: 78, scalp: 75, sunscreen: 88, glutathione: 68 },
-  { month: "Jul 24", ceramide: 82, scalp: 82, sunscreen: 72, glutathione: 77 },
-  { month: "Aug 24", ceramide: 88, scalp: 88, sunscreen: 65, glutathione: 84 },
+  { month: "Sep 24", ceramide: 42, scalp: 38, sunscreen: 78, glutathione: 18 },
+  { month: "Oct 24", ceramide: 48, scalp: 44, sunscreen: 82, glutathione: 24 },
+  { month: "Nov 24", ceramide: 55, scalp: 52, sunscreen: 95, glutathione: 32 },
+  { month: "Dec 24", ceramide: 62, scalp: 60, sunscreen: 100, glutathione: 44 },
+  { month: "Jan 25", ceramide: 70, scalp: 68, sunscreen: 96, glutathione: 56 },
+  { month: "Feb 25", ceramide: 78, scalp: 75, sunscreen: 88, glutathione: 68 },
+  { month: "Mar 25", ceramide: 82, scalp: 82, sunscreen: 72, glutathione: 77 },
+  { month: "Apr 25", ceramide: 88, scalp: 88, sunscreen: 65, glutathione: 84 },
 ];
 
 export const gapMatrixData = [
-  { name: "Ceramide Mist", x: 35, y: 85, size: 120 },
-  { name: "Bhringraj Serum", x: 55, y: 92, size: 140 },
-  { name: "SPF 60 Gel", x: 72, y: 88, size: 160 },
-  { name: "Glutathione Serum", x: 28, y: 80, size: 130 },
-  { name: "Bond Repair Mask", x: 60, y: 78, size: 145 },
-  { name: "Blue Light Moisturizer", x: 15, y: 70, size: 100 },
+  { name: "Concept A", x: 35, y: 85, size: 120 },
+  { name: "Concept B", x: 55, y: 92, size: 140 },
+  { name: "Concept C", x: 72, y: 88, size: 160 },
+  { name: "Concept D", x: 28, y: 80, size: 130 },
+  { name: "Concept E", x: 60, y: 78, size: 145 },
+  { name: "Concept F", x: 15, y: 70, size: 100 },
 ];

@@ -151,6 +151,55 @@ LIVE MARKET SIGNALS:
 ${signals.slice(0, 3000)}
 """
 
+INDIAN D2C PRICING REFERENCE (Nykaa/Amazon IN, 2025 current market):
+Skincare:
+  - Basic serums (niacinamide, HA, Vitamin C): ₹299–₹699
+  - Active serums (retinol, azelaic acid, peptides): ₹599–₹999
+  - Moisturizers / day creams: ₹199–₹599
+  - Sunscreens: ₹299–₹599 (mass), ₹599–₹899 (premium gel)
+  - Face masks / mists: ₹299–₹699
+Haircare:
+  - Scalp serums / tonics: ₹399–₹799
+  - Shampoos / conditioners: ₹249–₹599
+  - Hair masks / treatments: ₹299–₹549
+  - Hair gummies / nutraceuticals: ₹699–₹999
+Supplements:
+  - Basic capsules / softgels: ₹399–₹699
+  - Gummies (30 count): ₹499–₹899
+  - Premium powders / stacks: ₹799–₹1,299
+
+PRICING RULE: Set priceINR at the lower-to-mid end of the relevant tier UNLESS the concept has a genuine first-mover or clinically unique advantage that justifies a premium. The goal is market penetration pricing — competitive enough to take share from incumbents.
+
+SCORING RUBRIC — Calculate each score based on real market logic, not optimism:
+scores.marketSize (0–100) — How many Indians have this problem?
+  95–100: Tens of millions affected; mass-market essential (e.g., hair fall, vitamin D, sunscreen)
+  80–94: Millions affected; large but somewhat specific segment (e.g., acne, PCOS, scalp health)
+  65–79: Hundreds of thousands; growing but not yet mainstream (e.g., nootropics, blue light skin)
+  Below 65: Niche or very early market — proceed with caution
+
+scores.competition (0–100) — How crowded is this category on Amazon IN / Nykaa right now?
+  80–100: Flooded — 50+ Indian SKUs exist, dominated by major brands (e.g., basic moisturizers, plain vitamin C)
+  55–79: Moderate — 15–50 SKUs, some established players but room to differentiate
+  30–54: Low — Fewer than 15 Indian options, mostly imports or a few small brands
+  10–29: Blue ocean — essentially no Indian equivalent; category either very new or ignored by D2C brands
+  Below 10: True white space — format or combination does not exist in India
+
+scores.novelty (0–100) — How differentiated is this concept from existing competitors?
+  90–100: No direct equivalent in India; genuinely new format, combination, or mechanism of action
+  75–89: Exists globally or as a prescription item, but no accessible Indian D2C version
+  55–74: Indian options exist but this concept has a meaningful upgrade (better ingredients, format, or positioning)
+  Below 55: Incremental improvement only; consumers can easily substitute with existing options
+
+IMPORTANT: Scores must vary between concepts. One concept should typically score higher on novelty and lower on competition than the other.
+
+For topCompetitors: List 3 real, existing Indian D2C brands (e.g., Minimalist, Mamaearth, Dot & Key, The Derma Co, Plum, mCaffeine, WOW, Pilgrim, Fixderma, etc.) that compete most directly with this concept.
+- keyIngredients: List 2–3 of the competitor's primary active ingredients exactly as they appear on the product label.
+- keyClaims: Write the competitor's single most prominent marketing claim as it appears on their product page or packaging.
+
+For gapMatrixData: Generate one entry per concept. "name" must match the concept's name. "x" is the competition score (0-100). "y" is Unmet Consumer Demand (0-100, higher = more demand based on market signals).
+For trendData: Use key ingredient names from your generated concepts as data keys. Show realistic trending upward curves for the last 8 months (Sep 24–Apr 25).
+For sentimentData: Use relevant consumer complaint/praise themes from the market signals.
+
 Generate a market intelligence report. Return ONLY valid JSON:
 {
   "signalSummary": { "topInsight": "...", "marketMood": "..." },
@@ -170,9 +219,9 @@ Generate a market intelligence report. Return ONLY valid JSON:
         "differentiation": "string",
         "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
         "topCompetitors": [
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" }
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
         ]
       }
     },
@@ -191,12 +240,28 @@ Generate a market intelligence report. Return ONLY valid JSON:
         "differentiation": "string",
         "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
         "topCompetitors": [
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string" }
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
         ]
       }
     }
+  ],
+  "gapMatrixData": [
+    { "name": "ConceptName", "x": 50, "y": 80 }
+  ],
+  "trendData": [
+    { "month": "Sep 24", "ingredient1": 60, "ingredient2": 45 },
+    { "month": "Oct 24", "ingredient1": 65, "ingredient2": 50 },
+    { "month": "Nov 24", "ingredient1": 70, "ingredient2": 55 },
+    { "month": "Dec 24", "ingredient1": 78, "ingredient2": 62 },
+    { "month": "Jan 25", "ingredient1": 82, "ingredient2": 70 },
+    { "month": "Feb 25", "ingredient1": 86, "ingredient2": 75 },
+    { "month": "Mar 25", "ingredient1": 90, "ingredient2": 82 },
+    { "month": "Apr 25", "ingredient1": 88, "ingredient2": 85 }
+  ],
+  "sentimentData": [
+    { "theme": "theme", "positive": 80, "negative": 20 }
   ]
 }`;
 }
