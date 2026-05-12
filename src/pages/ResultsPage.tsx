@@ -21,10 +21,13 @@ const ResultsPage = () => {
     }
   }, [isLocalFallback]);
 
+  // Determine if we are relying on fallback data
+  const isFallbackData = !generatedResults?.concepts || generatedResults.concepts.length === 0;
+
   // Use generated results from context if available, fallback to mock data
-  const allConcepts = (generatedResults?.concepts && generatedResults.concepts.length > 0)
-    ? generatedResults.concepts
-    : (isUpload ? uploadConcepts : mockConcepts);
+  const allConcepts = isFallbackData
+    ? (isUpload ? uploadConcepts : mockConcepts)
+    : generatedResults.concepts;
 
   const activeSentimentData = generatedResults?.sentimentData ? generatedResults.sentimentData : mockSentimentData;
   const activeTrendData = generatedResults?.trendData ? generatedResults.trendData : mockTrendData;
@@ -86,9 +89,9 @@ const ResultsPage = () => {
 
   return (
     <div className="min-h-screen bg-surface">
-      {isLocalFallback && (
+      {isFallbackData && !isUpload && (
         <div className="w-full bg-red-600 text-white text-center py-3 font-bold text-sm z-50 relative">
-          ⚠️ DEVELOPMENT MODE: Local fallback active — AI engine unavailable
+          ⚠️ STATIC MODE: Live AI Engine did not generate results. Showing fallback data.
         </div>
       )}
       <Navbar />

@@ -40,6 +40,7 @@ const MinePage = () => {
     setMineSources,
     setMineKeywords,
     setGeneratedResults,
+    setIsLocalFallback,
     connectionError
   } = useUploadContext();
 
@@ -55,6 +56,10 @@ const MinePage = () => {
   };
 
   const handleMine = () => {
+    // Clear previous results to prevent stale data
+    setGeneratedResults(null);
+    setIsLocalFallback(false);
+
     // Save selections to context
     setMineCategory(selectedCategory);
     setMineSources(enabledSources);
