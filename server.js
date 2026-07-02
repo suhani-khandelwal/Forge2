@@ -292,7 +292,17 @@ async function runFullPipeline(category, keywords, url) {
   if (url) {
     signals = await lightweightScrape(url);
   } else {
-    const queries = CATEGORY_QUERIES[category] || [category + " trending products India", category + " consumer complaints India"];
+    let queries;
+    if (keywords && keywords.trim()) {
+      const cleanKw = keywords.trim();
+      queries = [
+        `Indian ${category} ${cleanKw} consumer reviews complaints 2025`,
+        `best selling ${category} ${cleanKw} products ingredients trending India 2025`
+      ];
+      console.log(`  [Search] Custom keywords detected. Querying DuckDuckGo specifically for: "${cleanKw}"...`);
+    } else {
+      queries = CATEGORY_QUERIES[category] || [category + " trending products India", category + " consumer complaints India"];
+    }
     const results = await Promise.all(queries.map(fetchMarketBreadcrumbs));
     signals = results.filter(Boolean).join("\n\n");
   }
