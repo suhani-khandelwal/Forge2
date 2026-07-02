@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import path from "path";
 import { fileURLToPath } from "url";
+import { FALLBACK_DATA } from "./fallbackData.js";
 
 dotenv.config();
 
@@ -27,7 +28,7 @@ let lastAiError = "None";
 
 // AI Turbo Relay Factory
 async function generateWithKeyRotation(prompt, retryCount = 0) {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
   
   for (const key of shuffledKeys) {
@@ -40,11 +41,22 @@ async function generateWithKeyRotation(prompt, retryCount = 0) {
       } catch (err) {
         lastAiError = err.message;
         const isQuotaError = err.message.includes("429") || err.message.includes("Quota");
-        if (isQuotaError) continue;
+        if (isQuotaError) {
+          console.warn(`  [AI] ⚠️ Quota error with ${modelName} on key ${key.slice(0, 8)}...`);
+          continue;
+        }
         console.error(`  [AI] ⚠️ Fatal Error with ${modelName}: ${err.message.slice(0, 100)}...`);
         continue;
       }
     }
+  }
+
+  // If we failed all keys and models, and we haven't reached max retries, wait and retry!
+  if (retryCount < 2) {
+    const waitTime = (retryCount + 1) * 3000;
+    console.log(`  [AI] ⏳ All keys/models hit quota. Retrying in ${waitTime/1000}s (Attempt ${retryCount + 1}/2)...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    return generateWithKeyRotation(prompt, retryCount + 1);
   }
 
   throw new Error(`Strategic Forge Timed Out: All API Keys hit cumulative limits. Last: ${lastAiError}`);
@@ -140,11 +152,36 @@ async function fetchMarketBreadcrumbs(query) {
   }
 }
 
-function buildForgePrompt(category, signals, keywords = '') {
+function buildForgePrompt(category, signals, keywords = '', focusGroup = '', conceptCount = 4, idOffset = 0) {
   const currentMonth = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   
+  const conceptsJsonTemplate = Array.from({ length: conceptCount }, (_, i) => {
+    const idSeed = idOffset + i;
+    return `    {
+      "id": ${Math.floor(Math.random() * 10000) + idSeed},
+      "name": "string",
+      "tagline": "string", 
+      "category": "${category}",
+      "format": "string",
+      "ingredients": ["string"],
+      "rationale": "string",
+      "priceINR": "₹...",
+      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
+      "competitiveIntelligence": {
+        "whiteSpace": "string",
+        "differentiation": "string",
+        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
+        "topCompetitors": [
+          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
+          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
+        ]
+      }
+    }`;
+  }).join(",\n");
+
   return `You are the Strategic Innovation Lead for India's wellness market.
-CONTEXT: ${currentMonth} | Category: ${category}${keywords ? ` | Focus: ${keywords}` : ''}
+CONTEXT: ${currentMonth} | Category: ${category}${keywords ? ` | Focus: ${keywords}` : ''}${focusGroup ? ` | Theme Focus: ${focusGroup}` : ''}
 
 LIVE MARKET SIGNALS:
 """
@@ -192,12 +229,10 @@ scores.novelty (0–100) — How differentiated is this concept from existing co
 
 IMPORTANT: Scores must vary between concepts. One concept should typically score higher on novelty and lower on competition than the other.
 
-For topCompetitors: List exactly 5 real, existing Indian D2C brands that compete most directly with this concept. You must strictly structure them as:
+For topCompetitors: List exactly 3 real, existing Indian D2C brands that compete most directly with this concept. You must strictly structure them as:
 1. The Market Leader (The dominant mass-market incumbent)
 2. The Premium Alternative (A high-end or clinical brand)
 3. The Direct Threat (A D2C brand operating in the exact same niche)
-4. Emerging Brand 1
-5. Emerging Brand 2
 - keyIngredients: List 2–3 of the competitor's primary active ingredients exactly as they appear on the product label.
 - keyClaims: Write the competitor's single most prominent marketing claim as it appears on their product page or packaging.
 
@@ -209,98 +244,7 @@ Generate a market intelligence report. Return ONLY valid JSON:
 {
   "signalSummary": { "topInsight": "...", "marketMood": "..." },
   "concepts": [
-    {
-      "id": ${Math.floor(Math.random() * 10000)},
-      "name": "string",
-      "tagline": "string", 
-      "category": "${category}",
-      "format": "string",
-      "ingredients": ["string"],
-      "rationale": "string",
-      "priceINR": "₹...",
-      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
-      "competitiveIntelligence": {
-        "whiteSpace": "string",
-        "differentiation": "string",
-        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
-        "topCompetitors": [
-          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
-        ]
-      }
-    },
-    {
-      "id": ${Math.floor(Math.random() * 10000) + 1},
-      "name": "string",
-      "tagline": "string", 
-      "category": "${category}",
-      "format": "string",
-      "ingredients": ["string"],
-      "rationale": "string",
-      "priceINR": "₹...",
-      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
-      "competitiveIntelligence": {
-        "whiteSpace": "string",
-        "differentiation": "string",
-        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
-        "topCompetitors": [
-          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
-        ]
-      }
-    },
-    {
-      "id": ${Math.floor(Math.random() * 10000) + 2},
-      "name": "string",
-      "tagline": "string", 
-      "category": "${category}",
-      "format": "string",
-      "ingredients": ["string"],
-      "rationale": "string",
-      "priceINR": "₹...",
-      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
-      "competitiveIntelligence": {
-        "whiteSpace": "string",
-        "differentiation": "string",
-        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
-        "topCompetitors": [
-          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
-        ]
-      }
-    },
-    {
-      "id": ${Math.floor(Math.random() * 10000) + 3},
-      "name": "string",
-      "tagline": "string", 
-      "category": "${category}",
-      "format": "string",
-      "ingredients": ["string"],
-      "rationale": "string",
-      "priceINR": "₹...",
-      "scores": { "marketSize": 85, "novelty": 90, "competition": 45 },
-      "competitiveIntelligence": {
-        "whiteSpace": "string",
-        "differentiation": "string",
-        "pricing": { "low": "₹...", "mid": "₹...", "premium": "₹..." },
-        "topCompetitors": [
-          { "brand": "string (Market Leader)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Premium)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string (Direct Threat)", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" },
-          { "brand": "string", "product": "string", "price": "₹...", "platform": "string", "keyIngredients": ["string"], "keyClaims": "string" }
-        ]
-      }
-    }
+${conceptsJsonTemplate}
   ],
   "gapMatrixData": [
     { "name": "ConceptName", "x": 50, "y": 80 }
@@ -321,6 +265,28 @@ Generate a market intelligence report. Return ONLY valid JSON:
 }`;
 }
 
+function mergeTrendData(trend1, trend2) {
+  if (!trend1 || !Array.isArray(trend1)) return trend2 || [];
+  if (!trend2 || !Array.isArray(trend2)) return trend1 || [];
+  
+  const merged = [];
+  const length = Math.max(trend1.length, trend2.length);
+  for (let i = 0; i < length; i++) {
+    const t1 = trend1[i] || {};
+    const t2 = trend2[i] || {};
+    merged.push({
+      ...t1,
+      ...t2,
+      month: t1.month || t2.month || ""
+    });
+  }
+  return merged;
+}
+
+function mergeSentimentData(sent1, sent2) {
+  return [...(sent1 || []), ...(sent2 || [])];
+}
+
 async function runFullPipeline(category, keywords, url) {
   let signals = "";
   if (url) {
@@ -333,10 +299,61 @@ async function runFullPipeline(category, keywords, url) {
   
   if (!signals) signals = "Generic high-competition market, consumers seek better formulations and efficacy.";
 
-  const prompt = buildForgePrompt(category, signals, keywords);
-  const aiResponse = await generateWithKeyRotation(prompt);
-  const parsed = JSON.parse(aiResponse.replace(/```json\n?|```/g, "").trim());
-  return parsed;
+  // Define two distinct themes to guarantee variety and avoid overlap
+  const focusGroup1 = "Mass-Market Efficacy & Daily Essentials (e.g., cleansers, daily moisturizers, daily sunscreens, basic serums/tonics, scalp treatments)";
+  const focusGroup2 = "Specialized/Premium Treatments & Clinical Innovation (e.g., active booster serums, targeted night creams, specialty wellness supplements, gummies)";
+
+  // Call the prompts in parallel
+  const prompt1 = buildForgePrompt(category, signals, keywords, focusGroup1, 4, 1000);
+  const prompt2 = buildForgePrompt(category, signals, keywords, focusGroup2, 4, 2000);
+
+  console.log(`  [AI] 🚀 Triggering parallel forge pipelines for category: ${category}...`);
+  const startTime = Date.now();
+
+  let parsed1, parsed2;
+
+  try {
+    const [aiResponse1, aiResponse2] = await Promise.all([
+      generateWithKeyRotation(prompt1),
+      generateWithKeyRotation(prompt2)
+    ]);
+
+    console.log(`  [AI] ⚡ Parallel responses received in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+
+    parsed1 = JSON.parse(aiResponse1.replace(/```json\n?|```/g, "").trim());
+    parsed2 = JSON.parse(aiResponse2.replace(/```json\n?|```/g, "").trim());
+  } catch (err) {
+    console.warn(`  [AI] ⚠️ Strategic Forge pipeline failed: ${err.message}`);
+    const cleanCategory = (category || "").toLowerCase();
+    if (FALLBACK_DATA[cleanCategory]) {
+      console.log(`  [Cache] 💡 Falling back to pre-defined strategic mock intelligence for category: ${cleanCategory}...`);
+      return {
+        ...FALLBACK_DATA[cleanCategory],
+        metadata: { method: "fallback", error: err.message }
+      };
+    }
+    throw err;
+  }
+
+  // Merge output structures gracefully
+  const merged = {
+    signalSummary: {
+      topInsight: parsed1.signalSummary?.topInsight || parsed2.signalSummary?.topInsight || "",
+      marketMood: parsed1.signalSummary?.marketMood || parsed2.signalSummary?.marketMood || ""
+    },
+    concepts: [
+      ...(parsed1.concepts || []),
+      ...(parsed2.concepts || [])
+    ],
+    gapMatrixData: [
+      ...(parsed1.gapMatrixData || []),
+      ...(parsed2.gapMatrixData || [])
+    ],
+    trendData: mergeTrendData(parsed1.trendData, parsed2.trendData),
+    sentimentData: mergeSentimentData(parsed1.sentimentData, parsed2.sentimentData)
+  };
+
+  return merged;
 }
 
 const inflight = new Map();
@@ -442,7 +459,11 @@ app.get(/^(?!\/api).*/, (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n  🚀 AI Forge Backend [VERSION 2.0 - STRATEGIC ENGINE] running on Port ${PORT}\n`);
-  preSeedCache();
+  if (process.env.PRESEED === "true") {
+    preSeedCache();
+  } else {
+    console.log("  [Cache] 💡 Pre-seeding skipped. Run with PRESEED=true to seed cache at startup.");
+  }
 });
 
 export default app;
