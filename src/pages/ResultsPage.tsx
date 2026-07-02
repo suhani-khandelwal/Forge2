@@ -89,9 +89,9 @@ const ResultsPage = () => {
 
   return (
     <div className="min-h-screen bg-surface">
-      {isFallbackData && !isUpload && (
-        <div className="w-full bg-red-600 text-white text-center py-3 font-bold text-sm z-50 relative">
-          ⚠️ STATIC MODE: Live AI Engine did not generate results. Showing fallback data.
+      {((isFallbackData && !isUpload) || generatedResults?.metadata?.method === "fallback") && (
+        <div className="w-full bg-amber-600 text-white text-center py-3 font-bold text-sm z-50 relative">
+          ⚠️ DEMO MODE: API Quota exceeded. Showing local fallback intelligence data (Reason: {generatedResults?.metadata?.error || "All API keys hit limits"}).
         </div>
       )}
       <Navbar />
@@ -101,7 +101,7 @@ const ResultsPage = () => {
           <div className="container mx-auto px-6">
             <div className="flex items-start justify-between flex-wrap gap-6">
               <div>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
                   {isUpload ? (
                     <Upload className="w-4 h-4 text-sage" />
                   ) : (
@@ -110,6 +110,24 @@ const ResultsPage = () => {
                   <p className="text-sage text-sm font-body font-semibold uppercase tracking-widest">
                     {isUpload ? "Upload Analysis Results" : "Live Data Mining Results"}
                   </p>
+                  
+                  {!isUpload && (
+                    <>
+                      {generatedResults?.metadata?.method === "fallback" ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-body font-bold uppercase tracking-wider">
+                          Demo Fallback (API Quota Exhausted)
+                        </span>
+                      ) : generatedResults?.agentStatus?.includes("Cached") ? (
+                        <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-body font-bold uppercase tracking-wider">
+                          Cached Intelligence
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-body font-bold uppercase tracking-wider">
+                          Live AI Generated
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
                 <h1 className="font-display text-4xl font-bold text-white mb-2">
                   {filtered.length} Product Concepts Forged
