@@ -28,7 +28,7 @@ let lastAiError = "None";
 
 // AI Turbo Relay Factory
 async function generateWithKeyRotation(prompt, retryCount = 0) {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
   
   for (const key of shuffledKeys) {
@@ -309,29 +309,18 @@ async function runFullPipeline(category, keywords, url) {
   
   if (!signals) signals = "Generic high-competition market, consumers seek better formulations and efficacy.";
 
-  // Define two distinct themes to guarantee variety and avoid overlap
-  const focusGroup1 = "Mass-Market Efficacy & Daily Essentials (e.g., cleansers, daily moisturizers, daily sunscreens, basic serums/tonics, scalp treatments)";
-  const focusGroup2 = "Specialized/Premium Treatments & Clinical Innovation (e.g., active booster serums, targeted night creams, specialty wellness supplements, gummies)";
+  // Request exactly 8 concepts in a single sequential call to avoid concurrent API rate limits (429)
+  const prompt = buildForgePrompt(category, signals, keywords, "", 8, 1000);
 
-  // Call the prompts in parallel
-  const prompt1 = buildForgePrompt(category, signals, keywords, focusGroup1, 4, 1000);
-  const prompt2 = buildForgePrompt(category, signals, keywords, focusGroup2, 4, 2000);
-
-  console.log(`  [AI] 🚀 Triggering parallel forge pipelines for category: ${category}...`);
+  console.log(`  [AI] 🚀 Triggering single forge pipeline to generate 8 concepts for category: ${category}...`);
   const startTime = Date.now();
 
-  let parsed1, parsed2;
+  let parsed;
 
   try {
-    const [aiResponse1, aiResponse2] = await Promise.all([
-      generateWithKeyRotation(prompt1),
-      generateWithKeyRotation(prompt2)
-    ]);
-
-    console.log(`  [AI] ⚡ Parallel responses received in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
-
-    parsed1 = JSON.parse(aiResponse1.replace(/```json\n?|```/g, "").trim());
-    parsed2 = JSON.parse(aiResponse2.replace(/```json\n?|```/g, "").trim());
+    const aiResponse = await generateWithKeyRotation(prompt);
+    console.log(`  [AI] ⚡ Response received in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+    parsed = JSON.parse(aiResponse.replace(/```json\n?|```/g, "").trim());
   } catch (err) {
     console.warn(`  [AI] ⚠️ Strategic Forge pipeline failed: ${err.message}`);
     const cleanCategory = (category || "").toLowerCase();
@@ -345,25 +334,7 @@ async function runFullPipeline(category, keywords, url) {
     throw err;
   }
 
-  // Merge output structures gracefully
-  const merged = {
-    signalSummary: {
-      topInsight: parsed1.signalSummary?.topInsight || parsed2.signalSummary?.topInsight || "",
-      marketMood: parsed1.signalSummary?.marketMood || parsed2.signalSummary?.marketMood || ""
-    },
-    concepts: [
-      ...(parsed1.concepts || []),
-      ...(parsed2.concepts || [])
-    ],
-    gapMatrixData: [
-      ...(parsed1.gapMatrixData || []),
-      ...(parsed2.gapMatrixData || [])
-    ],
-    trendData: mergeTrendData(parsed1.trendData, parsed2.trendData),
-    sentimentData: mergeSentimentData(parsed1.sentimentData, parsed2.sentimentData)
-  };
-
-  return merged;
+  return parsed;
 }
 
 const inflight = new Map();
