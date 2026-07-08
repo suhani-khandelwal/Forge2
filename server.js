@@ -371,40 +371,10 @@ app.get("/api/generate-stream", async (req, res) => {
   };
 
   try {
-    const cacheKey = `${category}::${keywords}`;
-    
     emit('step', { id: 0, label: 'Checking intelligence archive...' });
-    
-    // Check cache
-    if (!url) {
-      const cached = getCached(cacheKey);
-      if (cached) {
-        emit('step', { id: 1, label: 'Cache hit — retrieving stored intelligence' });
-        emit('step', { id: 4, label: 'Intelligence report ready' });
-        emit('complete', { ...cached, generatedAt: new Date(), agentStatus: 'Strategic Forge Complete (Cached)' });
-        return res.end();
-      }
-    }
+    emit('step', { id: 1, label: 'Harvesting live market signals...' });
 
-    // Process
-    let promise;
-    if (!url && inflight.has(cacheKey)) {
-       promise = inflight.get(cacheKey);
-       emit('step', { id: 1, label: 'Joining existing strategic forge mission...' });
-    } else {
-       emit('step', { id: 1, label: 'Harvesting live market signals...' });
-       
-       promise = runFullPipeline(category, keywords, url).then(result => {
-         if (!url) cache.set(cacheKey, { data: result, timestamp: Date.now() });
-         if (!url) inflight.delete(cacheKey);
-         return result;
-       }).catch(err => {
-         if (!url) inflight.delete(cacheKey);
-         throw err;
-       });
-       
-       if (!url) inflight.set(cacheKey, promise);
-    }
+    const promise = runFullPipeline(category, keywords, url);
     
     // Periodically emit an intermediate step to show progress while waiting for the promise
     let isDone = false;
@@ -415,7 +385,6 @@ app.get("/api/generate-stream", async (req, res) => {
     const parsed = await promise;
     emit('step', { id: 4, label: 'Intelligence report ready' });
     emit('complete', { ...parsed, generatedAt: new Date(), agentStatus: 'Strategic Forge Complete' });
-    // res.end() cannot be called immediately if we want to keep the stream alive, but it finishes here.
     res.end();
   } catch (error) {
     console.error("[Agent Error]:", error.message);
